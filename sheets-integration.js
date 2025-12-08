@@ -287,7 +287,7 @@ function initializeSheetsIntegration() {
     createSyncIndicator();
 
     // Verificar se a URL está configurada
-    if (SHEETS_API_URL === 'https://script.google.com/macros/s/AKfycbwItUjXcRDXH2u71eKBgSkw6umX_yRwfZ7u6f-efRCZB1E2yN5N0OQpfO1D8BLg-O_D/exec') {
+    if (SHEETS_API_URL === 'COLE_SUA_URL_AQUI') {
         console.warn('⚠️ URL do Google Sheets não configurada!');
         showSyncStatus('Modo offline', 'warning');
         loadFromLocalStorage();
