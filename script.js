@@ -263,10 +263,12 @@ function handleDrop(e) {
     state.items = newOrder;
     renderItemsList();
     
-    // ADICIONE ESTA LINHA:
-    if (typeof scheduleAutoSave === 'function') {
-        scheduleAutoSave();
-    }
+    // Disparar auto-save (aguardar carregamento do sheets-integration)
+    setTimeout(() => {
+        if (typeof scheduleAutoSave === 'function') {
+            scheduleAutoSave();
+        }
+    }, 100);
 }
 
 function getDragAfterElement(container, y) {
@@ -288,6 +290,13 @@ function removeItem(id) {
     if (confirm('Deseja remover este item?')) {
         state.items = state.items.filter(i => i.id !== id);
         renderItemsList();
+        
+        // Disparar auto-save
+        setTimeout(() => {
+            if (typeof scheduleAutoSave === 'function') {
+                scheduleAutoSave();
+            }
+        }, 100);
     }
 }
 
@@ -358,6 +367,13 @@ function handleSaveItem(e) {
 
     renderItemsList();
     closeModal();
+    
+    // Disparar auto-save
+    setTimeout(() => {
+        if (typeof scheduleAutoSave === 'function') {
+            scheduleAutoSave();
+        }
+    }, 100);
 }
 
 // Preview Rendering
