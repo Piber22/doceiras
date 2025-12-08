@@ -262,6 +262,11 @@ function handleDrop(e) {
 
     state.items = newOrder;
     renderItemsList();
+    
+    // ADICIONE ESTA LINHA:
+    if (typeof scheduleAutoSave === 'function') {
+        scheduleAutoSave();
+    }
 }
 
 function getDragAfterElement(container, y) {
@@ -475,4 +480,6 @@ function handleExportImage() {
         icon.className = 'fas fa-image';
         button.disabled = false;
     });
+
+    
 }
