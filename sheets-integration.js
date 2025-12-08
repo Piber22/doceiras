@@ -1,89 +1,35 @@
 // ============================================
-// GOOGLE SHEETS INTEGRATION - NO-CORS MODE
+// GOOGLE SHEETS INTEGRATION - SAVE-FOCUSED
+// Prioridade: NUNCA perder dados de salvamento
 // ============================================
 
 // CONFIGURAÇÃO: Cole aqui a URL do seu Google Apps Script
-const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwItUjXcRDXH2u71eKBgSkw6umX_yRwfZ7u6f-efRCZB1E2yN5N0OQpfO1D8BLg-O_D/exec';
+const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbxE7z_fJLNCcW5EngqSxW5SNjZW6pTpjca8GD-09577iGkeUeG9hndXjPzQhavwScQY/exec';
 
 // Estado de sincronização
 let syncStatus = {
     isSyncing: false,
     lastSaved: null,
     hasUnsavedChanges: false,
-    saveTimeout: null
+    saveTimeout: null,
+    saveQueue: [] // Fila de salvamentos pendentes
 };
 
 // ============================================
-// CARREGAR DADOS DO GOOGLE SHEETS
-// ============================================
-
-async function loadFromSheets() {
-    try {
-        showSyncStatus('Carregando dados...');
-
-        // Adicionar timestamp para evitar cache
-        const url = `${SHEETS_API_URL}?t=${Date.now()}`;
-
-        const response = await fetch(url, {
-            method: 'GET',
-            mode: 'cors', // Tentar CORS primeiro
-            cache: 'no-cache'
-        });
-
-        if (!response.ok) {
-            throw new Error('Erro ao carregar dados');
-        }
-
-        const data = await response.json();
-
-        // Atualizar o estado da aplicação
-        if (data.settings) state.settings = data.settings;
-        if (data.categories) state.categories = data.categories;
-        if (data.items) state.items = data.items;
-
-        // Re-renderizar tudo
-        renderCategories();
-        renderItemsList();
-        renderPreview();
-
-        // Atualizar inputs com os dados carregados
-        document.getElementById('inputTitle').value = state.settings.title;
-        document.getElementById('inputSubtitle').value = state.settings.subtitle;
-        document.getElementById('inputContact').value = state.settings.contact;
-
-        // Atualizar cor do tema
-        document.querySelectorAll('.color-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.color === state.settings.themeColor);
-        });
-
-        syncStatus.hasUnsavedChanges = false;
-        showSyncStatus('Dados carregados ✓', 'success');
-
-        console.log('✅ Dados carregados com sucesso do Google Sheets');
-
-    } catch (error) {
-        console.error('❌ Erro ao carregar dados:', error);
-        showSyncStatus('Modo offline', 'warning');
-
-        // Tentar carregar do localStorage como fallback
-        loadFromLocalStorage();
-    }
-}
-
-// ============================================
-// SALVAR DADOS NO GOOGLE SHEETS (NO-CORS)
+// SALVAR DADOS NO GOOGLE SHEETS (PRIORITÁRIO)
 // ============================================
 
 async function saveToSheets() {
     if (syncStatus.isSyncing) {
-        console.log('⏳ Já está salvando, aguarde...');
+        console.log('⏳ Já está salvando, adicionando à fila...');
+        syncStatus.saveQueue.push(Date.now());
         return;
     }
-
+    
     try {
         syncStatus.isSyncing = true;
-        showSyncStatus('Salvando...');
-
+        showSyncStatus('Salvando no Sheets...', 'saving');
+        
         const dataToSave = {
             type: 'saveAll',
             settings: state.settings,
@@ -91,41 +37,127 @@ async function saveToSheets() {
             items: state.items,
             timestamp: new Date().toISOString()
         };
-
-        // Usar no-cors mode para POST
-        const response = await fetch(SHEETS_API_URL, {
+        
+        // SALVAR NO LOCALSTORAGE PRIMEIRO (garantia)
+        saveToLocalStorage();
+        
+        // Enviar para Google Sheets com no-cors
+        await fetch(SHEETS_API_URL, {
             method: 'POST',
-            mode: 'no-cors', // Modo no-cors
+            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(dataToSave)
         });
-
-        // Com no-cors, não conseguimos ler a resposta
-        // Mas se chegou aqui, provavelmente funcionou
+        
+        // Se chegou aqui, provavelmente funcionou
         syncStatus.lastSaved = new Date();
         syncStatus.hasUnsavedChanges = false;
-
-        // Salvar também no localStorage como backup
-        saveToLocalStorage();
-
-        showSyncStatus('Salvo ✓', 'success');
-        console.log('✅ Dados enviados para Google Sheets');
-
+        
+        showSyncStatus('✓ Salvo no Sheets', 'success');
+        console.log('✅ Dados enviados para Google Sheets às', syncStatus.lastSaved.toLocaleTimeString());
+        
+        // Processar fila se houver
+        if (syncStatus.saveQueue.length > 0) {
+            syncStatus.saveQueue = [];
+            setTimeout(() => saveToSheets(), 1000);
+        }
+        
     } catch (error) {
-        console.error('❌ Erro ao salvar dados:', error);
-        showSyncStatus('Salvo localmente', 'warning');
-
-        // Salvar no localStorage como fallback
-        saveToLocalStorage();
+        console.error('❌ ERRO CRÍTICO ao salvar:', error);
+        showSyncStatus('⚠ Falha ao salvar!', 'error');
+        
+        // Alertar usuário sobre falha crítica
+        alert('⚠️ ATENÇÃO: Não foi possível salvar no Google Sheets!\n\nSeus dados estão salvos LOCALMENTE, mas não foram enviados para a nuvem.\n\nClique no botão "Sincronizar" para tentar novamente.');
+        
     } finally {
         syncStatus.isSyncing = false;
     }
 }
 
 // ============================================
-// FALLBACK: LOCAL STORAGE
+// CARREGAR DO SHEETS (VIA SCRIPT TAG - CONTORNA CORS)
+// ============================================
+
+async function loadFromSheets() {
+    try {
+        showSyncStatus('Carregando do Sheets...', 'loading');
+        
+        // Criar um callback único
+        const callbackName = 'loadSheetsData_' + Date.now();
+        
+        return new Promise((resolve, reject) => {
+            // Timeout de 10 segundos
+            const timeout = setTimeout(() => {
+                cleanup();
+                reject(new Error('Timeout ao carregar'));
+            }, 10000);
+            
+            // Função de callback global
+            window[callbackName] = function(data) {
+                clearTimeout(timeout);
+                cleanup();
+                
+                if (data && data.success) {
+                    // Atualizar estado
+                    if (data.settings) state.settings = data.settings;
+                    if (data.categories) state.categories = data.categories;
+                    if (data.items) state.items = data.items;
+                    
+                    // Re-renderizar
+                    renderCategories();
+                    renderItemsList();
+                    renderPreview();
+                    
+                    // Atualizar inputs
+                    document.getElementById('inputTitle').value = state.settings.title;
+                    document.getElementById('inputSubtitle').value = state.settings.subtitle;
+                    document.getElementById('inputContact').value = state.settings.contact;
+                    
+                    // Atualizar cor
+                    document.querySelectorAll('.color-btn').forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.color === state.settings.themeColor);
+                    });
+                    
+                    // Salvar no localStorage também
+                    saveToLocalStorage();
+                    
+                    showSyncStatus('✓ Carregado do Sheets', 'success');
+                    console.log('✅ Dados carregados do Google Sheets');
+                    resolve();
+                } else {
+                    reject(new Error('Dados inválidos'));
+                }
+            };
+            
+            // Limpar recursos
+            function cleanup() {
+                if (window[callbackName]) delete window[callbackName];
+                if (script && script.parentNode) script.parentNode.removeChild(script);
+            }
+            
+            // Criar script tag com callback JSONP
+            const script = document.createElement('script');
+            script.src = `${SHEETS_API_URL}?callback=${callbackName}&t=${Date.now()}`;
+            script.onerror = () => {
+                clearTimeout(timeout);
+                cleanup();
+                reject(new Error('Erro ao carregar script'));
+            };
+            
+            document.head.appendChild(script);
+        });
+        
+    } catch (error) {
+        console.error('⚠️ Não foi possível carregar do Sheets:', error);
+        showSyncStatus('Usando dados locais', 'warning');
+        loadFromLocalStorage();
+    }
+}
+
+// ============================================
+// LOCAL STORAGE (BACKUP SEMPRE ATIVO)
 // ============================================
 
 function saveToLocalStorage() {
@@ -137,9 +169,9 @@ function saveToLocalStorage() {
             timestamp: new Date().toISOString()
         };
         localStorage.setItem('doceGestaoData', JSON.stringify(data));
-        console.log('💾 Dados salvos no localStorage');
+        console.log('💾 Backup local salvo');
     } catch (error) {
-        console.error('Erro ao salvar no localStorage:', error);
+        console.error('❌ ERRO ao salvar localmente:', error);
     }
 }
 
@@ -148,52 +180,53 @@ function loadFromLocalStorage() {
         const saved = localStorage.getItem('doceGestaoData');
         if (saved) {
             const data = JSON.parse(saved);
-
+            
             if (data.settings) state.settings = data.settings;
             if (data.categories) state.categories = data.categories;
             if (data.items) state.items = data.items;
-
+            
             renderCategories();
             renderItemsList();
             renderPreview();
-
+            
             document.getElementById('inputTitle').value = state.settings.title;
             document.getElementById('inputSubtitle').value = state.settings.subtitle;
             document.getElementById('inputContact').value = state.settings.contact;
-
+            
             document.querySelectorAll('.color-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.color === state.settings.themeColor);
             });
-
-            console.log('💾 Dados carregados do localStorage');
-            showSyncStatus('Dados locais carregados', 'info');
+            
+            const timestamp = new Date(data.timestamp).toLocaleString();
+            console.log('💾 Dados locais carregados (último backup:', timestamp + ')');
+            showSyncStatus('Dados locais', 'info');
+        } else {
+            console.log('ℹ️ Nenhum dado local encontrado');
         }
     } catch (error) {
-        console.error('Erro ao carregar do localStorage:', error);
+        console.error('❌ Erro ao carregar dados locais:', error);
     }
 }
 
 // ============================================
-// AUTO-SAVE COM DEBOUNCE
+// AUTO-SAVE COM DEBOUNCE (2 SEGUNDOS)
 // ============================================
 
 function scheduleAutoSave() {
     syncStatus.hasUnsavedChanges = true;
     showSyncStatus('Não salvo...', 'warning');
-
-    // Limpar timeout anterior
+    
     if (syncStatus.saveTimeout) {
         clearTimeout(syncStatus.saveTimeout);
     }
-
-    // Agendar salvamento para 2 segundos depois
+    
     syncStatus.saveTimeout = setTimeout(() => {
         saveToSheets();
     }, 2000);
 }
 
 // ============================================
-// INDICADOR VISUAL DE SINCRONIZAÇÃO
+// INDICADOR VISUAL APRIMORADO
 // ============================================
 
 function createSyncIndicator() {
@@ -215,220 +248,214 @@ function createSyncIndicator() {
         z-index: 1000;
         transition: all 0.3s;
         border: 1px solid #e5e7eb;
+        cursor: pointer;
     `;
-
+    
     indicator.innerHTML = `
         <i class="fas fa-cloud" style="font-size: 14px;"></i>
         <span id="syncText">Inicializando...</span>
     `;
-
+    
+    // Clicar para ver status detalhado
+    indicator.addEventListener('click', showDetailedStatus);
+    
     document.body.appendChild(indicator);
 }
 
 function showSyncStatus(message, type = 'info') {
     const indicator = document.getElementById('syncIndicator');
+    if (!indicator) return;
+    
     const text = document.getElementById('syncText');
     const icon = indicator.querySelector('i');
-
-    if (!indicator) return;
-
+    
     text.textContent = message;
-
-    // Resetar classes
+    
+    // Resetar
     indicator.style.background = 'white';
     indicator.style.color = '#6b7280';
     indicator.style.borderColor = '#e5e7eb';
-
-    // Aplicar estilos baseado no tipo
+    
     switch(type) {
         case 'success':
             indicator.style.background = '#dcfce7';
             indicator.style.color = '#16a34a';
             indicator.style.borderColor = '#86efac';
             icon.className = 'fas fa-check-circle';
-
-            // Esconder depois de 3 segundos
+            
             setTimeout(() => {
-                indicator.style.opacity = '0';
-                setTimeout(() => {
-                    indicator.style.opacity = '1';
-                    showSyncStatus('Conectado', 'info');
-                }, 300);
+                if (text.textContent === message) {
+                    indicator.style.opacity = '0.7';
+                    text.textContent = 'Online';
+                    icon.className = 'fas fa-cloud';
+                }
             }, 3000);
             break;
-
+            
         case 'error':
             indicator.style.background = '#fee2e2';
             indicator.style.color = '#dc2626';
             indicator.style.borderColor = '#fca5a5';
             icon.className = 'fas fa-exclamation-circle';
             break;
-
+            
         case 'warning':
             indicator.style.background = '#fef3c7';
             indicator.style.color = '#d97706';
             indicator.style.borderColor = '#fcd34d';
             icon.className = 'fas fa-exclamation-triangle';
             break;
-
+            
+        case 'saving':
+        case 'loading':
+            indicator.style.background = '#dbeafe';
+            indicator.style.color = '#2563eb';
+            indicator.style.borderColor = '#93c5fd';
+            icon.className = 'fas fa-spinner fa-spin';
+            break;
+            
         default:
             icon.className = 'fas fa-cloud';
     }
 }
 
-// ============================================
-// INTERCEPTAR MUDANÇAS NO APP ORIGINAL
-// ============================================
-
-function initializeSheetsIntegration() {
-    console.log('🔄 Inicializando integração com Google Sheets...');
-
-    // Criar indicador visual
-    createSyncIndicator();
-
-    // Verificar se a URL está configurada
-    if (SHEETS_API_URL === 'COLE_SUA_URL_AQUI') {
-        console.warn('⚠️ URL do Google Sheets não configurada!');
-        showSyncStatus('Modo offline', 'warning');
-        loadFromLocalStorage();
-        return;
-    }
-
-    // Carregar dados do Sheets ao iniciar
-    loadFromSheets();
-
-    // Interceptar mudanças nas configurações
-    const originalInputListeners = [
-        { id: 'inputTitle', property: 'title' },
-        { id: 'inputSubtitle', property: 'subtitle' },
-        { id: 'inputContact', property: 'contact' }
-    ];
-
-    originalInputListeners.forEach(({ id, property }) => {
-        const element = document.getElementById(id);
-        element.addEventListener('input', () => {
-            scheduleAutoSave();
-        });
-    });
-
-    // Interceptar mudanças de cor
-    document.querySelectorAll('.color-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            scheduleAutoSave();
-        });
-    });
-
-    // Sobrescrever funções originais para incluir auto-save
-    overrideOriginalFunctions();
-
-    console.log('✅ Integração com Google Sheets ativa!');
+function showDetailedStatus() {
+    const lastSaved = syncStatus.lastSaved 
+        ? syncStatus.lastSaved.toLocaleString() 
+        : 'Nunca';
+    
+    const unsaved = syncStatus.hasUnsavedChanges ? 'Sim' : 'Não';
+    
+    alert(`📊 Status de Sincronização\n\n` +
+          `Último salvamento: ${lastSaved}\n` +
+          `Alterações não salvas: ${unsaved}\n` +
+          `Fila de salvamentos: ${syncStatus.saveQueue.length}\n\n` +
+          `💾 Dados sempre salvos localmente como backup.`);
 }
 
 // ============================================
-// SOBRESCREVER FUNÇÕES ORIGINAIS
-// ============================================
-
-function overrideOriginalFunctions() {
-    // Salvar referências das funções originais
-    const originalAddCategory = window.addCategory;
-    const originalUpdateCategory = window.updateCategory;
-    const originalRemoveCategory = window.removeCategory;
-    const originalRemoveItem = window.removeItem;
-    const originalHandleSaveItem = window.handleSaveItem;
-
-    // Sobrescrever addCategory
-    window.addCategory = function() {
-        originalAddCategory();
-        scheduleAutoSave();
-    };
-
-    // Sobrescrever updateCategory
-    window.updateCategory = function(id, name) {
-        originalUpdateCategory(id, name);
-        scheduleAutoSave();
-    };
-
-    // Sobrescrever removeCategory
-    window.removeCategory = function(id) {
-        originalRemoveCategory(id);
-        scheduleAutoSave();
-    };
-
-    // Sobrescrever removeItem
-    window.removeItem = function(id) {
-        originalRemoveItem(id);
-        scheduleAutoSave();
-    };
-
-    // Sobrescrever handleSaveItem
-    window.handleSaveItem = function(e) {
-        originalHandleSaveItem(e);
-        scheduleAutoSave();
-    };
-
-    // Sobrescrever handleDrop (drag and drop)
-    const itemsList = document.getElementById('itemsList');
-    if (itemsList) {
-        itemsList.addEventListener('drop', () => {
-            setTimeout(() => scheduleAutoSave(), 500);
-        });
-    }
-}
-
-// ============================================
-// BOTÃO MANUAL DE SINCRONIZAÇÃO
+// BOTÕES DE CONTROLE
 // ============================================
 
 function addManualSyncButton() {
     const header = document.querySelector('.header-container');
-
+    
     const syncButton = document.createElement('button');
     syncButton.id = 'btnManualSync';
     syncButton.className = 'btn-primary';
     syncButton.style.marginLeft = '8px';
     syncButton.innerHTML = '<i class="fas fa-sync-alt"></i> Sincronizar';
-
+    syncButton.title = 'Salvar agora e carregar dados do Sheets';
+    
     syncButton.addEventListener('click', async () => {
         const icon = syncButton.querySelector('i');
         icon.classList.add('fa-spin');
-
+        
+        // Salvar primeiro
         await saveToSheets();
+        
+        // Depois tentar carregar
         await loadFromSheets();
-
+        
         icon.classList.remove('fa-spin');
     });
-
+    
     header.appendChild(syncButton);
 }
 
 // ============================================
-// VERIFICAR CONEXÃO COM SHEETS
+// INICIALIZAÇÃO
 // ============================================
 
-async function checkSheetsConnection() {
-    try {
-        const url = `${SHEETS_API_URL}?t=${Date.now()}`;
-        const response = await fetch(url, {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache'
-        });
-
-        if (response.ok) {
-            console.log('✅ Google Sheets está acessível via CORS');
-            return true;
-        }
-    } catch (error) {
-        console.log('⚠️ CORS bloqueado, usando modo no-cors');
+function initializeSheetsIntegration() {
+    console.log('🔄 Inicializando sistema de salvamento...');
+    
+    createSyncIndicator();
+    
+    // Verificar URL
+    if (SHEETS_API_URL === 'COLE_SUA_URL_AQUI') {
+        console.warn('⚠️ URL do Google Sheets não configurada!');
+        showSyncStatus('Apenas local', 'warning');
+        loadFromLocalStorage();
+        return;
     }
-    return false;
+    
+    // Carregar dados locais primeiro (instantâneo)
+    loadFromLocalStorage();
+    
+    // Tentar carregar do Sheets em background
+    setTimeout(() => {
+        loadFromSheets().catch(() => {
+            console.log('ℹ️ Continuando com dados locais');
+        });
+    }, 1000);
+    
+    // Interceptar mudanças
+    setupEventListeners();
+    overrideOriginalFunctions();
+    
+    console.log('✅ Sistema de salvamento ativo!');
+    console.log('💾 Backup local: ATIVO');
+    console.log('☁️ Sincronização com Sheets: ATIVA');
+}
+
+function setupEventListeners() {
+    // Configurações
+    ['inputTitle', 'inputSubtitle', 'inputContact'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', scheduleAutoSave);
+    });
+    
+    // Cores
+    document.querySelectorAll('.color-btn').forEach(btn => {
+        btn.addEventListener('click', scheduleAutoSave);
+    });
+}
+
+function overrideOriginalFunctions() {
+    const original = {
+        addCategory: window.addCategory,
+        updateCategory: window.updateCategory,
+        removeCategory: window.removeCategory,
+        removeItem: window.removeItem,
+        handleSaveItem: window.handleSaveItem
+    };
+    
+    window.addCategory = function() {
+        original.addCategory();
+        scheduleAutoSave();
+    };
+    
+    window.updateCategory = function(id, name) {
+        original.updateCategory(id, name);
+        scheduleAutoSave();
+    };
+    
+    window.removeCategory = function(id) {
+        original.removeCategory(id);
+        scheduleAutoSave();
+    };
+    
+    window.removeItem = function(id) {
+        original.removeItem(id);
+        scheduleAutoSave();
+    };
+    
+    window.handleSaveItem = function(e) {
+        original.handleSaveItem(e);
+        scheduleAutoSave();
+    };
+    
+    // Drag and drop
+    document.getElementById('itemsList')?.addEventListener('drop', () => {
+        setTimeout(scheduleAutoSave, 500);
+    });
 }
 
 // ============================================
-// INICIALIZAR QUANDO O DOM ESTIVER PRONTO
+// INICIAR APÓS CARREGAR DOM
 // ============================================
 
 setTimeout(() => {
     initializeSheetsIntegration();
-    addManualSyncButton(); // Adicionar botão de sync manual
+    addManualSyncButton();
 }, 500);
