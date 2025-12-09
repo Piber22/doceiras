@@ -262,17 +262,6 @@ function handleDrop(e) {
 
     state.items = newOrder;
     renderItemsList();
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> origin/main
-    // Disparar auto-save (aguardar carregamento do sheets-integration)
-    setTimeout(() => {
-        if (typeof scheduleAutoSave === 'function') {
-            scheduleAutoSave();
-        }
-    }, 100);
 }
 
 function getDragAfterElement(container, y) {
@@ -294,17 +283,6 @@ function removeItem(id) {
     if (confirm('Deseja remover este item?')) {
         state.items = state.items.filter(i => i.id !== id);
         renderItemsList();
-<<<<<<< HEAD
-
-=======
-        
->>>>>>> origin/main
-        // Disparar auto-save
-        setTimeout(() => {
-            if (typeof scheduleAutoSave === 'function') {
-                scheduleAutoSave();
-            }
-        }, 100);
     }
 }
 
@@ -375,17 +353,6 @@ function handleSaveItem(e) {
 
     renderItemsList();
     closeModal();
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> origin/main
-    // Disparar auto-save
-    setTimeout(() => {
-        if (typeof scheduleAutoSave === 'function') {
-            scheduleAutoSave();
-        }
-    }, 100);
 }
 
 // Preview Rendering
@@ -508,11 +475,4 @@ function handleExportImage() {
         icon.className = 'fas fa-image';
         button.disabled = false;
     });
-
-<<<<<<< HEAD
-
 }
-=======
-    
-}
->>>>>>> origin/main
