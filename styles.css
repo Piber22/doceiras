@@ -768,24 +768,60 @@ header {
     transform: scale(1.02);
 }
 
-/* Responsive */
+/* Esconder indicador de sincronização */
+#syncIndicator {
+    display: none !important;
+}
+/* Responsive - MOBILE */
 @media (max-width: 768px) {
     .main-container {
         flex-direction: column;
+        padding-bottom: 100px; /* Espaço para os botões */
     }
 
     .preview-container {
         position: static;
     }
 
+    /* Botões menores e em linha no mobile */
     .floating-actions {
-        flex-direction: column;
+        bottom: 16px;
+        padding: 8px 16px;
         gap: 12px;
-        padding: 16px;
+        position: fixed; /* Mantém fixo mas menor */
+    }
+
+    .action-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .action-icon i {
+        font-size: 16px;
+    }
+
+    .action-btn span {
+        font-size: 9px;
     }
 
     .divider {
-        width: 32px;
-        height: 1px;
+        height: 28px;
+    }
+}
+
+/* ALTERNATIVA: Botões no final da página (não fixos) */
+@media (max-width: 768px) {
+    body.no-fixed-buttons .floating-actions {
+        position: relative;
+        bottom: auto;
+        left: auto;
+        transform: none;
+        margin: 24px auto;
+        display: flex;
+        width: fit-content;
+    }
+
+    body.no-fixed-buttons .main-container {
+        padding-bottom: 24px;
     }
 }
