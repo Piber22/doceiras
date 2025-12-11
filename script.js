@@ -172,6 +172,12 @@ function renderItemsList() {
             itemDiv.className = 'item-card';
             itemDiv.draggable = true;
             itemDiv.dataset.itemId = item.id;
+
+            // Adicionar classe se estiver oculto
+            if (!item.visible) {
+                itemDiv.classList.add('item-hidden');
+            }
+
             itemDiv.innerHTML = `
                 <div class="item-left">
                     <div class="drag-handle">
@@ -183,6 +189,9 @@ function renderItemsList() {
                     </div>
                 </div>
                 <div class="item-actions">
+                    <button class="btn-icon visibility ${item.visible ? 'visible' : 'hidden'}" onclick="toggleVisibility('${item.id}')" title="${item.visible ? 'Ocultar item' : 'Mostrar item'}">
+                        <i class="fas fa-eye${item.visible ? '' : '-slash'}"></i>
+                    </button>
                     <button class="btn-icon edit" onclick="startEditing('${item.id}')">
                         <i class="fas fa-pencil-alt"></i>
                     </button>
@@ -262,6 +271,13 @@ function handleDrop(e) {
 
     state.items = newOrder;
     renderItemsList();
+
+    // Disparar auto-save
+    setTimeout(() => {
+        if (typeof scheduleAutoSave === 'function') {
+            scheduleAutoSave();
+        }
+    }, 100);
 }
 
 function getDragAfterElement(container, y) {
@@ -279,10 +295,34 @@ function getDragAfterElement(container, y) {
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
+// NOVA FUNÇÃO: Toggle Visibility
+function toggleVisibility(id) {
+    const item = state.items.find(i => i.id === id);
+    if (item) {
+        item.visible = !item.visible;
+        renderItemsList();
+        renderPreview();
+
+        // Disparar auto-save
+        setTimeout(() => {
+            if (typeof scheduleAutoSave === 'function') {
+                scheduleAutoSave();
+            }
+        }, 100);
+    }
+}
+
 function removeItem(id) {
     if (confirm('Deseja remover este item?')) {
         state.items = state.items.filter(i => i.id !== id);
         renderItemsList();
+
+        // Disparar auto-save
+        setTimeout(() => {
+            if (typeof scheduleAutoSave === 'function') {
+                scheduleAutoSave();
+            }
+        }, 100);
     }
 }
 
@@ -339,23 +379,31 @@ function handleSaveItem(e) {
             item.categoryId = categoryId;
         }
     } else {
-        // Add new item
+        // Add new item (ATUALIZADO: adiciona visible: true)
         const newItem = {
             id: Date.now().toString(),
             name,
             description,
             price,
             categoryId,
-            highlight: false
+            highlight: false,
+            visible: true
         };
         state.items.push(newItem);
     }
 
     renderItemsList();
     closeModal();
+
+    // Disparar auto-save
+    setTimeout(() => {
+        if (typeof scheduleAutoSave === 'function') {
+            scheduleAutoSave();
+        }
+    }, 100);
 }
 
-// Preview Rendering
+// Preview Rendering (ATUALIZADO: filtra apenas visíveis)
 function renderPreview() {
     const preview = document.getElementById('menuPreview');
     const themeClass = `theme-${state.settings.themeColor}`;
@@ -369,7 +417,7 @@ function renderPreview() {
     `;
 
     state.categories.forEach(category => {
-        const categoryItems = state.items.filter(item => item.categoryId === category.id);
+        const categoryItems = state.items.filter(item => item.categoryId === category.id && item.visible);
 
         if (categoryItems.length === 0) return;
 
@@ -413,12 +461,12 @@ function renderPreview() {
     preview.innerHTML = html;
 }
 
-// Export Functions
+// Export Functions (ATUALIZADO: filtra apenas visíveis)
 function handleCopyText() {
     let text = `🍰 *${state.settings.title.toUpperCase()}* 🍰\n_${state.settings.subtitle}_\n\n`;
 
     state.categories.forEach(cat => {
-        const catItems = state.items.filter(i => i.categoryId === cat.id);
+        const catItems = state.items.filter(i => i.categoryId === cat.id && i.visible);
         if (catItems.length > 0) {
             text += `*${cat.name.toUpperCase()}*\n`;
             catItems.forEach(item => {
