@@ -4,7 +4,7 @@
 // ============================================
 
 // CONFIGURAÇÃO: Cole aqui a URL do seu Google Apps Script
-const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbxE7z_fJLNCcW5EngqSxW5SNjZW6pTpjca8GD-09577iGkeUeG9hndXjPzQhavwScQY/exec';
+const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbxs3-BUH6JeWt5cXF_ZWmoh9fibYV2qPdGLoM8zbC6Sg2pcV005GHKkDwUUSqHCUtqC/exec';
 
 // Estado de sincronização
 let syncStatus = {
