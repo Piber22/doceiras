@@ -176,7 +176,7 @@ header {
     display: block;
     font-size: 12px;
     font-weight: bold;
-    color: #6b7281;
+    color: #9ca3af;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-left: 4px;
@@ -192,7 +192,7 @@ header {
     border-radius: 12px;
     padding: 12px;
     font-size: 14px;
-    color: #535860;
+    color: #1f2937;
     transition: all 0.3s;
     font-family: 'Nunito', sans-serif;
 }
@@ -272,7 +272,7 @@ header {
     border-radius: 8px;
     padding: 8px 12px;
     font-size: 14px;
-    color: #6b7281;
+    color: #374151;
     transition: all 0.3s;
 }
 
@@ -342,6 +342,22 @@ header {
     transform: scale(1.02);
 }
 
+/* NOVO: Estilos para item oculto */
+.item-card.item-hidden {
+    opacity: 0.5;
+    background: #f9fafb;
+    border-color: #e5e7eb;
+}
+
+.item-card.item-hidden .item-info h4 {
+    text-decoration: line-through;
+    color: #9ca3af;
+}
+
+.item-card.item-hidden .item-info p {
+    color: #d1d5db;
+}
+
 .item-left {
     display: flex;
     align-items: center;
@@ -391,14 +407,38 @@ header {
     transition: all 0.3s;
 }
 
+/* NOVO: Estilos para botão de visibilidade */
+.btn-icon.visibility {
+    background: transparent;
+    transition: all 0.3s;
+}
+
+.btn-icon.visibility.visible {
+    color: #16a34a;
+}
+
+.btn-icon.visibility.visible:hover {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.btn-icon.visibility.hidden {
+    color: #9ca3af;
+}
+
+.btn-icon.visibility.hidden:hover {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
 .btn-icon.edit {
-    color: #ee7172;
+    color: #60a5fa;
     background: transparent;
 }
 
 .btn-icon.edit:hover {
     background: #eff6ff;
-    color: #e74b94;
+    color: #2563eb;
 }
 
 .btn-icon.delete {
@@ -734,7 +774,6 @@ header {
     padding-top: 8px;
 }
 
-
 .btn-secondary {
     flex: 1;
     padding: 12px;
@@ -773,11 +812,12 @@ header {
 #syncIndicator {
     display: none !important;
 }
+
 /* Responsive - MOBILE */
 @media (max-width: 768px) {
     .main-container {
         flex-direction: column;
-        padding-bottom: 100px; /* Espaço para os botões */
+        padding-bottom: 100px;
     }
 
     .preview-container {
@@ -789,7 +829,7 @@ header {
         bottom: 16px;
         padding: 8px 16px;
         gap: 12px;
-        position: fixed; /* Mantém fixo mas menor */
+        position: fixed;
     }
 
     .action-icon {
@@ -807,22 +847,5 @@ header {
 
     .divider {
         height: 28px;
-    }
-}
-
-/* ALTERNATIVA: Botões no final da página (não fixos) */
-@media (max-width: 768px) {
-    body.no-fixed-buttons .floating-actions {
-        position: relative;
-        bottom: auto;
-        left: auto;
-        transform: none;
-        margin: 24px auto;
-        display: flex;
-        width: fit-content;
-    }
-
-    body.no-fixed-buttons .main-container {
-        padding-bottom: 24px;
     }
 }
