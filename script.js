@@ -109,12 +109,14 @@ function addCategory() {
     };
     state.categories.push(newCategory);
     renderCategories();
+    updateCategorySelect(); // ADICIONAR ESTA LINHA
 }
 
 function updateCategory(id, name) {
     const category = state.categories.find(c => c.id === id);
     if (category) {
         category.name = name;
+        updateCategorySelect(); // ADICIONAR ESTA LINHA
         renderItemsList();
         renderPreview();
     }
@@ -124,6 +126,7 @@ function removeCategory(id) {
     if (confirm('Tem certeza? Os itens desta categoria ficarão ocultos até serem movidos.')) {
         state.categories = state.categories.filter(c => c.id !== id);
         renderCategories();
+        updateCategorySelect(); // ADICIONAR ESTA LINHA
         renderItemsList();
         renderPreview();
     }
@@ -172,12 +175,12 @@ function renderItemsList() {
             itemDiv.className = 'item-card';
             itemDiv.draggable = true;
             itemDiv.dataset.itemId = item.id;
-
+            
             // Adicionar classe se estiver oculto
             if (!item.visible) {
                 itemDiv.classList.add('item-hidden');
             }
-
+            
             itemDiv.innerHTML = `
                 <div class="item-left">
                     <div class="drag-handle">
@@ -271,7 +274,7 @@ function handleDrop(e) {
 
     state.items = newOrder;
     renderItemsList();
-
+    
     // Disparar auto-save
     setTimeout(() => {
         if (typeof scheduleAutoSave === 'function') {
@@ -302,7 +305,7 @@ function toggleVisibility(id) {
         item.visible = !item.visible;
         renderItemsList();
         renderPreview();
-
+        
         // Disparar auto-save
         setTimeout(() => {
             if (typeof scheduleAutoSave === 'function') {
@@ -316,7 +319,7 @@ function removeItem(id) {
     if (confirm('Deseja remover este item?')) {
         state.items = state.items.filter(i => i.id !== id);
         renderItemsList();
-
+        
         // Disparar auto-save
         setTimeout(() => {
             if (typeof scheduleAutoSave === 'function') {
@@ -394,7 +397,7 @@ function handleSaveItem(e) {
 
     renderItemsList();
     closeModal();
-
+    
     // Disparar auto-save
     setTimeout(() => {
         if (typeof scheduleAutoSave === 'function') {
