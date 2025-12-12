@@ -699,6 +699,15 @@ header {
     background: #fbcfe8;
 }
 
+.action-icon.link {
+    background: #dbeafe;
+    color: #3b82f6;
+}
+
+.action-btn:hover .action-icon.link {
+    background: #bfdbfe;
+}
+
 .action-icon i {
     font-size: 20px;
 }
