@@ -98,12 +98,23 @@
             </div>
             <span>Copiar Texto</span>
         </button>
+
         <div class="divider"></div>
+
         <button id="btnExportImage" class="action-btn">
             <div class="action-icon image">
                 <i class="fas fa-image"></i>
             </div>
             <span>Baixar Imagem</span>
+        </button>
+
+        <div class="divider"></div>
+
+        <button id="btnOpenMenu" class="action-btn">
+            <div class="action-icon link">
+                <i class="fas fa-external-link-alt"></i>
+            </div>
+            <span>Cardápio Completo</span>
         </button>
     </div>
 
@@ -136,9 +147,27 @@
                 </div>
             </form>
         </div>
-    </div> 
+    </div>
 
-    
+    <!-- Modal de Link do Cardápio -->
+    <div id="modalLink" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-title">🔗 Link do Cardápio Completo</h2>
+            <p style="color: #6b7280; margin-bottom: 20px; line-height: 1.6;">
+                Compartilhe este link com suas clientes! Elas poderão ver o cardápio completo, sempre atualizado.
+            </p>
+            <div style="background: #fdf2f8; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 2px dashed #f9a8d4;">
+                <input type="text" id="menuLink" readonly style="width: 100%; background: white; border: 1px solid #fce7f3; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 14px; color: #1f2937;">
+            </div>
+            <div class="form-actions">
+                <button type="button" onclick="closeModalLink()" class="btn-secondary">Fechar</button>
+                <button type="button" onclick="copyMenuLink()" class="btn-submit">
+                    <i class="fas fa-copy"></i> Copiar Link
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
     <script src="sheets-integration.js"></script>
 </body>
