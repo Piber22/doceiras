@@ -65,6 +65,7 @@ function initializeEventListeners() {
     // Floating actions
     document.getElementById('btnCopyText').addEventListener('click', handleCopyText);
     document.getElementById('btnExportImage').addEventListener('click', handleExportImage);
+    document.getElementById('btnOpenMenu').addEventListener('click', openMenuLink);
 
     // Close modal on backdrop click
     document.getElementById('modalForm').addEventListener('click', (e) => {
@@ -175,12 +176,12 @@ function renderItemsList() {
             itemDiv.className = 'item-card';
             itemDiv.draggable = true;
             itemDiv.dataset.itemId = item.id;
-            
+
             // Adicionar classe se estiver oculto
             if (!item.visible) {
                 itemDiv.classList.add('item-hidden');
             }
-            
+
             itemDiv.innerHTML = `
                 <div class="item-left">
                     <div class="drag-handle">
@@ -274,7 +275,7 @@ function handleDrop(e) {
 
     state.items = newOrder;
     renderItemsList();
-    
+
     // Disparar auto-save
     setTimeout(() => {
         if (typeof scheduleAutoSave === 'function') {
@@ -305,7 +306,7 @@ function toggleVisibility(id) {
         item.visible = !item.visible;
         renderItemsList();
         renderPreview();
-        
+
         // Disparar auto-save
         setTimeout(() => {
             if (typeof scheduleAutoSave === 'function') {
@@ -319,7 +320,7 @@ function removeItem(id) {
     if (confirm('Deseja remover este item?')) {
         state.items = state.items.filter(i => i.id !== id);
         renderItemsList();
-        
+
         // Disparar auto-save
         setTimeout(() => {
             if (typeof scheduleAutoSave === 'function') {
@@ -397,7 +398,7 @@ function handleSaveItem(e) {
 
     renderItemsList();
     closeModal();
-    
+
     // Disparar auto-save
     setTimeout(() => {
         if (typeof scheduleAutoSave === 'function') {
@@ -525,5 +526,39 @@ function handleExportImage() {
         // Reset button
         icon.className = 'fas fa-image';
         button.disabled = false;
+    });
+}
+
+// Link do Cardápio Completo
+function openMenuLink() {
+    const currentUrl = window.location.href;
+    const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
+    const menuUrl = baseUrl + 'cardapio.html';
+
+    document.getElementById('menuLink').value = menuUrl;
+    document.getElementById('modalLink').classList.add('active');
+}
+
+function closeModalLink() {
+    document.getElementById('modalLink').classList.remove('active');
+}
+
+function copyMenuLink() {
+    const linkInput = document.getElementById('menuLink');
+    linkInput.select();
+    linkInput.setSelectionRange(0, 99999); // Para mobile
+
+    navigator.clipboard.writeText(linkInput.value).then(() => {
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+        btn.style.background = '#16a34a';
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.style.background = '';
+        }, 2000);
+    }).catch(err => {
+        alert('Erro ao copiar link. Selecione e copie manualmente.');
     });
 }
