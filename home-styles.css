@@ -1,0 +1,161 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Nunito', sans-serif;
+    background: linear-gradient(135deg, #FFF5F7 0%, #FFE5EC 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    color: #1f2937;
+}
+
+.app-container {
+    width: 100%;
+    max-width: 480px; /* Largura de um celular */
+    padding: 40px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Header */
+.home-header {
+    text-align: center;
+    margin-bottom: 40px;
+    animation: fadeInDown 0.6s ease-out;
+}
+
+.logo-circle {
+    background: white;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    box-shadow: 0 10px 20px rgba(236, 72, 153, 0.15);
+}
+
+.logo-circle i {
+    font-size: 40px;
+    color: #ec4899;
+}
+
+.brand-name {
+    font-family: 'Pacifico', cursive;
+    font-size: 32px;
+    color: #ec4899;
+    margin-bottom: 8px;
+}
+
+.welcome-text {
+    font-size: 18px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+/* Menu Principal */
+.home-menu {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: fadeInUp 0.8s ease-out;
+}
+
+.menu-button {
+    background: white;
+    text-decoration: none;
+    padding: 20px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.menu-button:hover {
+    transform: translateY(-3px);
+    border-color: #fce7f3;
+    box-shadow: 0 8px 25px rgba(236, 72, 153, 0.1);
+}
+
+.menu-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.menu-icon.edit {
+    background: #fce7f3;
+    color: #ec4899;
+}
+
+.menu-icon.view {
+    background: #e0f2fe;
+    color: #0ea5e9;
+}
+
+.menu-info {
+    flex: 1;
+}
+
+.menu-title {
+    display: block;
+    font-size: 18px;
+    font-weight: 800;
+    color: #1f2937;
+}
+
+.menu-desc {
+    display: block;
+    font-size: 13px;
+    color: #9ca3af;
+}
+
+.arrow {
+    color: #d1d5db;
+    font-size: 14px;
+}
+
+/* Extras */
+.coming-soon {
+    text-align: center;
+    margin-top: 20px;
+    color: #9ca3af;
+    font-size: 14px;
+    font-style: italic;
+}
+
+.home-footer {
+    margin-top: auto;
+    padding-top: 40px;
+    font-size: 14px;
+    color: #9ca3af;
+}
+
+.home-footer i {
+    color: #fb7185;
+}
+
+/* Animations */
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
