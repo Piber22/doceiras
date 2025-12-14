@@ -300,14 +300,41 @@ function addRefreshButton() {
         
         try {
             await loadFromSheets(true);
+            alert('✅ Dados atualizados com sucesso!');
         } catch (e) {
-            alert('Não foi possível carregar do servidor. Tente novamente.');
+            console.error('Erro detalhado:', e);
+            
+            // Oferecer limpar cache
+            const shouldClear = confirm(
+                '❌ Não foi possível carregar do servidor.\n\n' +
+                'Possíveis causas:\n' +
+                '• Cache corrompido\n' +
+                '• Problema de conexão\n' +
+                '• URL do Sheets incorreta\n\n' +
+                'Deseja limpar o cache e tentar novamente?'
+            );
+            
+            if (shouldClear) {
+                clearCacheAndReload();
+            }
         }
         
         icon.classList.remove('fa-spin');
     });
     
     header.appendChild(refreshBtn);
+    
+    // Adicionar botão de limpar cache
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'btn-primary';
+    clearBtn.style.marginLeft = '8px';
+    clearBtn.style.background = '#f59e0b';
+    clearBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+    clearBtn.title = 'Limpar cache e recarregar';
+    
+    clearBtn.addEventListener('click', clearCacheAndReload);
+    
+    header.appendChild(clearBtn);
 }
 
 // ============================================
@@ -411,14 +438,54 @@ function showDetailedStatus() {
         : 'Nunca';
 
     const unsaved = syncStatus.hasUnsavedChanges ? 'Sim' : 'Não';
+    
+    // Verificar cache
+    const saved = localStorage.getItem('doceGestaoData');
+    let cacheInfo = 'Nenhum';
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            const age = data.timestamp ? Math.floor((Date.now() - new Date(data.timestamp)) / 60000) : '?';
+            cacheInfo = `${age} minutos`;
+        } catch (e) {
+            cacheInfo = 'Corrompido';
+        }
+    }
 
-    alert(`📊 Status de Sincronização\n\n` +
+    const message = `📊 Status de Sincronização\n\n` +
           `Último carregamento: ${lastLoaded}\n` +
           `Último salvamento: ${lastSaved}\n` +
           `Alterações não salvas: ${unsaved}\n` +
+          `Idade do cache: ${cacheInfo}\n` +
           `Fila de salvamentos: ${syncStatus.saveQueue.length}\n\n` +
           `🔄 Auto-sync: Ativo (30s)\n` +
-          `💾 Backup local: Ativo`);
+          `💾 Backup local: Ativo\n\n` +
+          `⚠️ Problemas com sincronização?\n` +
+          `Clique OK e depois em "Limpar Cache"`;
+    
+    alert(message);
+}
+
+// ============================================
+// LIMPAR CACHE E RECARREGAR
+// ============================================
+
+function clearCacheAndReload() {
+    if (confirm('🗑️ Limpar todos os dados locais e recarregar do servidor?\n\n⚠️ Certifique-se de que todas as alterações foram salvas!')) {
+        console.log('🗑️ Limpando cache...');
+        localStorage.removeItem('doceGestaoData');
+        
+        showSyncStatus('Limpando cache...', 'loading');
+        
+        setTimeout(async () => {
+            try {
+                await loadFromSheets(true);
+                alert('✅ Cache limpo e dados recarregados com sucesso!');
+            } catch (e) {
+                alert('❌ Erro ao recarregar. Verifique sua conexão e tente novamente.\n\nSe o problema persistir, tente em uma aba anônima.');
+            }
+        }, 500);
+    }
 }
 
 // ============================================
@@ -456,20 +523,60 @@ async function initializeSheetsIntegration() {
 
     } catch (error) {
         console.error('⚠️ Falha ao carregar do Sheets:', error);
+        console.error('Detalhes do erro:', error.message);
         
         // Se não conseguiu do Sheets, tentar localStorage (sem validação de idade)
         const saved = localStorage.getItem('doceGestaoData');
         if (saved) {
             console.log('💾 Usando dados locais como fallback');
-            const data = JSON.parse(saved);
-            if (data.settings) state.settings = data.settings;
-            if (data.categories) state.categories = data.categories;
-            if (data.items) state.items = data.items;
-            updateUI();
-            showSyncStatus('Modo offline', 'warning');
+            try {
+                const data = JSON.parse(saved);
+                if (data.settings) state.settings = data.settings;
+                if (data.categories) state.categories = data.categories;
+                if (data.items) state.items = data.items;
+                updateUI();
+                showSyncStatus('Modo offline', 'warning');
+                
+                // Sugerir limpar cache
+                setTimeout(() => {
+                    const age = data.timestamp ? Math.floor((Date.now() - new Date(data.timestamp)) / 60000) : 999;
+                    if (age > 10) { // Mais de 10 minutos
+                        const shouldClear = confirm(
+                            '⚠️ Usando dados locais antigos (cache).\n\n' +
+                            `Idade: ${age} minutos\n\n` +
+                            'Não foi possível sincronizar com o servidor.\n' +
+                            'Deseja limpar o cache e tentar novamente?'
+                        );
+                        if (shouldClear) {
+                            clearCacheAndReload();
+                        }
+                    }
+                }, 2000);
+            } catch (parseError) {
+                console.error('❌ Cache corrompido:', parseError);
+                showSyncStatus('Cache corrompido', 'error');
+                
+                if (confirm('❌ Os dados locais estão corrompidos.\n\nDeseja limpar e recarregar?')) {
+                    clearCacheAndReload();
+                }
+            }
         } else {
             console.log('❌ Nenhum dado disponível');
             showSyncStatus('Sem dados', 'error');
+            
+            setTimeout(() => {
+                alert(
+                    '❌ Não foi possível carregar os dados.\n\n' +
+                    'Possíveis causas:\n' +
+                    '• Primeira vez usando o app\n' +
+                    '• Problema de conexão\n' +
+                    '• URL do Google Sheets incorreta\n\n' +
+                    'Tente:\n' +
+                    '1. Verificar sua conexão\n' +
+                    '2. Recarregar a página\n' +
+                    '3. Usar uma aba anônima'
+                );
+            }, 1000);
         }
     }
 
