@@ -493,108 +493,57 @@ function clearCacheAndReload() {
 // ============================================
 
 async function initializeSheetsIntegration() {
-    console.log('🔄 Inicializando sistema de sincronização V2...');
+    console.log('🔄 Inicializando sistema com limpeza automática de cache...');
 
     createSyncIndicator();
 
-    // Verificar URL
-    if (SHEETS_API_URL === 'COLE_SUA_URL_AQUI') {
-        console.warn('⚠️ URL do Google Sheets não configurada!');
-        showSyncStatus('Apenas local', 'warning');
-        loadFromLocalStorage();
-        return;
+    // 1. LIMPEZA AUTOMÁTICA: Se os dados locais tiverem mais de 10 minutos,
+    // nós os ignoramos completamente para forçar o carregamento do servidor.
+    const saved = localStorage.getItem('doceGestaoData');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            const age = data.timestamp ? (Date.now() - new Date(data.timestamp)) : 999999;
+
+            // Se o cache for maior que 10 min, limpa para não dar conflito no mobile
+            if (age > 600000) {
+                localStorage.removeItem('doceGestaoData');
+                console.log('🧹 Cache antigo removido automaticamente');
+            }
+        } catch(e) {
+            localStorage.removeItem('doceGestaoData');
+        }
     }
 
-    // ESTRATÉGIA: Tentar Sheets primeiro, usar cache como fallback
+    // 2. Tentar carregar do Google Sheets IMEDIATAMENTE
     try {
-        // 1. Verificar se há dados locais válidos (< 5 min)
-        const hasValidCache = loadFromLocalStorage();
+        showSyncStatus('Buscando dados...', 'loading');
 
-        if (hasValidCache) {
-            console.log('✅ Cache válido encontrado, usando temporariamente');
-            showSyncStatus('Cache válido', 'info');
-        }
-
-        // 2. SEMPRE tentar carregar do Sheets (em background se tiver cache)
-        console.log('🌐 Tentando carregar do Google Sheets...');
-        await loadFromSheets(!hasValidCache); // Só mostra loading se não tiver cache
-
-        console.log('✅ Dados sincronizados com sucesso!');
+        // No celular, ignoramos o LocalStorage no início para garantir que os dados venham da nuvem
+        await loadFromSheets(true);
+        console.log('✅ Dados frescos carregados do Sheets');
 
     } catch (error) {
-        console.error('⚠️ Falha ao carregar do Sheets:', error);
-        console.error('Detalhes do erro:', error.message);
-        
-        // Se não conseguiu do Sheets, tentar localStorage (sem validação de idade)
-        const saved = localStorage.getItem('doceGestaoData');
-        if (saved) {
-            console.log('💾 Usando dados locais como fallback');
-            try {
-                const data = JSON.parse(saved);
-                if (data.settings) state.settings = data.settings;
-                if (data.categories) state.categories = data.categories;
-                if (data.items) state.items = data.items;
-                updateUI();
-                showSyncStatus('Modo offline', 'warning');
-                
-                // Sugerir limpar cache
-                setTimeout(() => {
-                    const age = data.timestamp ? Math.floor((Date.now() - new Date(data.timestamp)) / 60000) : 999;
-                    if (age > 10) { // Mais de 10 minutos
-                        const shouldClear = confirm(
-                            '⚠️ Usando dados locais antigos (cache).\n\n' +
-                            `Idade: ${age} minutos\n\n` +
-                            'Não foi possível sincronizar com o servidor.\n' +
-                            'Deseja limpar o cache e tentar novamente?'
-                        );
-                        if (shouldClear) {
-                            clearCacheAndReload();
-                        }
-                    }
-                }, 2000);
-            } catch (parseError) {
-                console.error('❌ Cache corrompido:', parseError);
-                showSyncStatus('Cache corrompido', 'error');
-                
-                if (confirm('❌ Os dados locais estão corrompidos.\n\nDeseja limpar e recarregar?')) {
-                    clearCacheAndReload();
-                }
-            }
+        console.error('⚠️ Falha ao carregar do Sheets, tentando backup local:', error);
+
+        // Só usa o LocalStorage se o Google Sheets falhar (sem internet, por exemplo)
+        const hasLocal = loadFromLocalStorage();
+        if (hasLocal) {
+            showSyncStatus('Modo offline', 'warning');
         } else {
-            console.log('❌ Nenhum dado disponível');
-            showSyncStatus('Sem dados', 'error');
-            
-            setTimeout(() => {
-                alert(
-                    '❌ Não foi possível carregar os dados.\n\n' +
-                    'Possíveis causas:\n' +
-                    '• Primeira vez usando o app\n' +
-                    '• Problema de conexão\n' +
-                    '• URL do Google Sheets incorreta\n\n' +
-                    'Tente:\n' +
-                    '1. Verificar sua conexão\n' +
-                    '2. Recarregar a página\n' +
-                    '3. Usar uma aba anônima'
-                );
-            }, 1000);
+            showSyncStatus('Erro de conexão', 'error');
         }
     }
 
-    // Configurar listeners
+    // Configurações padrão do sistema
     setupEventListeners();
     overrideOriginalFunctions();
-    
-    // Iniciar recursos avançados
     startAutoSync();
     setupVisibilitySync();
-    addRefreshButton();
 
-    console.log('✅ Sistema V2 ativo!');
-    console.log('🔄 Auto-sync: 30 segundos');
-    console.log('👀 Sync ao focar: Ativo');
-    console.log('⏱️ Cache válido: 5 minutos');
+    // Remove o botão de atualizar manual para não confundir o usuário leigo
+    // addRefreshButton();
 }
-
 // ============================================
 // EVENT LISTENERS
 // ============================================
