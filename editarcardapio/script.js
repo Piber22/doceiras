@@ -533,7 +533,7 @@ function handleExportImage() {
 function openMenuLink() {
     const currentUrl = window.location.href;
     const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
-    const menuUrl = baseUrl + 'cardapio.html';
+    const menuUrl = baseUrl + 'cardapio/cardapio.html';
 
     document.getElementById('menuLink').value = menuUrl;
     document.getElementById('modalLink').classList.add('active');

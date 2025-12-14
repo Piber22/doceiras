@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doce Gestão</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Pacifico&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <div class="header-left">
+                <div class="logo-icon">
+                    <i class="fas fa-cookie-bite"></i>
+                </div>
+                <h1 class="logo-text">Doce Gestão</h1>
+            </div>
+            <button id="btnNewItem" class="btn-primary">
+                <i class="fas fa-plus"></i> Novo Item
+            </button>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <!-- Left Column: Management -->
+        <div class="left-column">
+
+            <!-- Settings Card -->
+            <div class="card">
+                <h2 class="card-title">
+                    <i class="fas fa-store"></i> Informações do Cabeçalho
+                </h2>
+                <div class="form-group">
+                    <label>Nome da Confeitaria</label>
+                    <input type="text" id="inputTitle" placeholder="Nome da sua Confeitaria" value="Doces da Ana">
+                </div>
+                <div class="form-group">
+                    <label>Subtítulo / Frase</label>
+                    <input type="text" id="inputSubtitle" placeholder="Frase de efeito (ex: Feito com amor)" value="Confeitaria Artesanal & Afeto">
+                </div>
+                <div class="form-group">
+                    <label>Contato</label>
+                    <input type="text" id="inputContact" placeholder="Telefone / WhatsApp" value="(11) 99999-9999">
+                </div>
+                <div class="theme-colors">
+                    <span class="theme-label">Cor do Tema:</span>
+                    <button class="color-btn pink active" data-color="pink"></button>
+                    <button class="color-btn rose" data-color="rose"></button>
+                    <button class="color-btn purple" data-color="purple"></button>
+                    <button class="color-btn teal" data-color="teal"></button>
+                    <button class="color-btn orange" data-color="orange"></button>
+                </div>
+            </div>
+
+            <!-- Categories Management -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-tags"></i> Categorias
+                    </h2>
+                    <button id="btnAddCategory" class="btn-small">
+                        <i class="fas fa-plus"></i> Nova
+                    </button>
+                </div>
+                <div id="categoriesList" class="categories-list"></div>
+            </div>
+
+            <!-- Items List -->
+            <div id="itemsListCard" class="card" style="display: none;">
+                <h2 class="card-title">Itens no Cardápio</h2>
+                <div id="itemsList"></div>
+            </div>
+        </div>
+
+        <!-- Right Column: Preview -->
+        <div class="right-column">
+            <div class="preview-container">
+                <h2 class="preview-label">Visualização em Tempo Real</h2>
+                <div class="preview-wrapper">
+                    <div id="menuPreview" class="menu-preview"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Floating Action Bar -->
+    <div class="floating-actions">
+        <button id="btnCopyText" class="action-btn">
+            <div class="action-icon whatsapp">
+                <i class="fab fa-whatsapp"></i>
+            </div>
+            <span>Copiar Texto</span>
+        </button>
+
+        <div class="divider"></div>
+
+        <button id="btnExportImage" class="action-btn">
+            <div class="action-icon image">
+                <i class="fas fa-image"></i>
+            </div>
+            <span>Baixar Imagem</span>
+        </button>
+
+        <div class="divider"></div>
+
+        <button id="btnOpenMenu" class="action-btn">
+            <div class="action-icon link">
+                <i class="fas fa-external-link-alt"></i>
+            </div>
+            <span>Cardápio Completo</span>
+        </button>
+    </div>
+
+    <!-- Modal Form -->
+    <div id="modalForm" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle" class="modal-title">Novo Doce</h2>
+            <form id="itemForm">
+                <div class="form-group">
+                    <label>Nome do Doce</label>
+                    <input type="text" id="itemName" placeholder="Ex: Bolo de Cenoura com Chocolate" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Categoria</label>
+                        <select id="itemCategory"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Preço (R$)</label>
+                        <input type="number" id="itemPrice" step="0.01" placeholder="0,00" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <textarea id="itemDescription" rows="3" placeholder="Descreva o seu doce com detalhes..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="btnCancel" class="btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn-submit">Adicionar ao Menu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Link do Cardápio -->
+    <div id="modalLink" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-title">Link do Cardápio Completo</h2>
+            <p style="color: #6b7280; margin-bottom: 20px; line-height: 1.6;">
+                Compartilhe este link com suas clientes! Elas poderão ver o cardápio completo, sempre atualizado.
+            </p>
+            <div style="background: #fdf2f8; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 2px dashed #f9a8d4;">
+                <input type="text" id="menuLink" readonly style="width: 100%; background: white; border: 1px solid #fce7f3; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 14px; color: #1f2937;">
+            </div>
+            <div class="form-actions">
+                <button type="button" onclick="closeModalLink()" class="btn-secondary">Fechar</button>
+                <button type="button" onclick="copyMenuLink()" class="btn-submit">
+                    <i class="fas fa-copy"></i> Copiar Link
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="sheets-integration.js"></script>
+</body>
+</html>
