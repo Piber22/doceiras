@@ -110,14 +110,14 @@ function addCategory() {
     };
     state.categories.push(newCategory);
     renderCategories();
-    updateCategorySelect(); // ADICIONAR ESTA LINHA
+    updateCategorySelect();
 }
 
 function updateCategory(id, name) {
     const category = state.categories.find(c => c.id === id);
     if (category) {
         category.name = name;
-        updateCategorySelect(); // ADICIONAR ESTA LINHA
+        updateCategorySelect();
         renderItemsList();
         renderPreview();
     }
@@ -127,7 +127,7 @@ function removeCategory(id) {
     if (confirm('Tem certeza? Os itens desta categoria ficarão ocultos até serem movidos.')) {
         state.categories = state.categories.filter(c => c.id !== id);
         renderCategories();
-        updateCategorySelect(); // ADICIONAR ESTA LINHA
+        updateCategorySelect();
         renderItemsList();
         renderPreview();
     }
@@ -299,7 +299,7 @@ function getDragAfterElement(container, y) {
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
-// NOVA FUNÇÃO: Toggle Visibility
+// Toggle Visibility
 function toggleVisibility(id) {
     const item = state.items.find(i => i.id === id);
     if (item) {
@@ -383,7 +383,7 @@ function handleSaveItem(e) {
             item.categoryId = categoryId;
         }
     } else {
-        // Add new item (ATUALIZADO: adiciona visible: true)
+        // Add new item
         const newItem = {
             id: Date.now().toString(),
             name,
@@ -407,7 +407,7 @@ function handleSaveItem(e) {
     }, 100);
 }
 
-// Preview Rendering (ATUALIZADO: filtra apenas visíveis)
+// Preview Rendering
 function renderPreview() {
     const preview = document.getElementById('menuPreview');
     const themeClass = `theme-${state.settings.themeColor}`;
@@ -465,7 +465,7 @@ function renderPreview() {
     preview.innerHTML = html;
 }
 
-// Export Functions (ATUALIZADO: filtra apenas visíveis)
+// Export Functions
 function handleCopyText() {
     let text = `🍰 *${state.settings.title.toUpperCase()}* 🍰\n_${state.settings.subtitle}_\n\n`;
 
@@ -546,7 +546,7 @@ function closeModalLink() {
 function copyMenuLink() {
     const linkInput = document.getElementById('menuLink');
     linkInput.select();
-    linkInput.setSelectionRange(0, 99999); // Para mobile
+    linkInput.setSelectionRange(0, 99999);
 
     navigator.clipboard.writeText(linkInput.value).then(() => {
         const btn = event.target.closest('button');

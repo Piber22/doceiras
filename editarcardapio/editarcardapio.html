@@ -13,6 +13,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 </head>
 <body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h2 class="loading-title">Doce Gestão</h2>
+            <p class="loading-text">Carregando seus dados...</p>
+        </div>
+    </div>
+
     <!-- Header -->
     <header>
         <div class="header-container">
@@ -167,6 +176,14 @@
             </div>
         </div>
     </div>
+
+<script>
+// Prevenir renderização prematura
+document.addEventListener('DOMContentLoaded', function() {
+    // Esconder conteúdo até carregar
+    document.querySelector('.main-container').style.opacity = '0';
+});
+</script>
 
 <script src="script.js" defer></script>
 <script src="sheets-integration.js" defer></script>

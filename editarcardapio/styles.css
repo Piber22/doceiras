@@ -342,7 +342,7 @@ header {
     transform: scale(1.02);
 }
 
-/* NOVO: Estilos para item oculto */
+/* Item oculto */
 .item-card.item-hidden {
     opacity: 0.5;
     background: #f9fafb;
@@ -407,7 +407,7 @@ header {
     transition: all 0.3s;
 }
 
-/* NOVO: Estilos para botão de visibilidade */
+/* Botão de visibilidade */
 .btn-icon.visibility {
     background: transparent;
     transition: all 0.3s;
@@ -820,6 +820,55 @@ header {
 /* Esconder indicador de sincronização */
 #syncIndicator {
     display: none !important;
+}
+
+/* Loading Screen */
+.loading-screen {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg, #fce7f3 0%, #fff5f7 100%);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.loading-screen.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.loading-content {
+    text-align: center;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 24px;
+    border: 4px solid rgba(236, 72, 153, 0.2);
+    border-top: 4px solid #ec4899;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-title {
+    font-family: 'Pacifico', cursive;
+    font-size: 32px;
+    color: #ec4899;
+    margin-bottom: 8px;
+}
+
+.loading-text {
+    font-size: 14px;
+    color: #9ca3af;
+    font-weight: 600;
 }
 
 /* Responsive - MOBILE */

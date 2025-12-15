@@ -1,9 +1,13 @@
 // ============================================
-// GOOGLE SHEETS INTEGRATION V2
-// Melhorias: Sempre tenta Sheets primeiro + Validação de cache + Auto-sync
+// GOOGLE SHEETS INTEGRATION V3
+// SOLUÇÃO DEFINITIVA: Cache-busting + Loading Screen
 // ============================================
 
 const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbxs3-BUH6JeWt5cXF_ZWmoh9fibYV2qPdGLoM8zbC6Sg2pcV005GHKkDwUUSqHCUtqC/exec';
+
+// Chave única para versão do cache
+const CACHE_VERSION = 'v3';
+const CACHE_KEY = `doceGestaoData_${CACHE_VERSION}`;
 
 // Estado de sincronização
 let syncStatus = {
@@ -18,8 +22,9 @@ let syncStatus = {
 // Configurações
 const CONFIG = {
     AUTO_SYNC_INTERVAL: 30000, // 30 segundos
-    CACHE_MAX_AGE: 300000, // 5 minutos
-    LOAD_TIMEOUT: 15000 // 15 segundos
+    CACHE_MAX_AGE: 180000, // 3 minutos
+    LOAD_TIMEOUT: 10000, // 10 segundos
+    FORCE_RELOAD_INTERVAL: 86400000 // 24 horas
 };
 
 // ============================================
@@ -35,7 +40,6 @@ async function saveToSheets() {
 
     try {
         syncStatus.isSyncing = true;
-        showSyncStatus('Salvando...', 'saving');
 
         const dataToSave = {
             type: 'saveAll',
@@ -48,8 +52,8 @@ async function saveToSheets() {
         // Salvar no localStorage primeiro (garantia)
         saveToLocalStorage(dataToSave);
 
-        // Enviar para Google Sheets
-        await fetch(SHEETS_API_URL, {
+        // Enviar para Google Sheets com cache-busting
+        await fetch(`${SHEETS_API_URL}?_=${Date.now()}`, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
@@ -61,7 +65,6 @@ async function saveToSheets() {
         syncStatus.lastSaved = new Date();
         syncStatus.hasUnsavedChanges = false;
 
-        showSyncStatus('✓ Salvo', 'success');
         console.log('✅ Dados salvos às', syncStatus.lastSaved.toLocaleTimeString());
 
         // Processar fila
@@ -72,7 +75,6 @@ async function saveToSheets() {
 
     } catch (error) {
         console.error('❌ Erro ao salvar:', error);
-        showSyncStatus('⚠ Erro ao salvar', 'error');
 
     } finally {
         syncStatus.isSyncing = false;
@@ -85,11 +87,9 @@ async function saveToSheets() {
 
 async function loadFromSheets(showLoading = true) {
     try {
-        if (showLoading) {
-            showSyncStatus('Carregando...', 'loading');
-        }
-
-        const callbackName = 'loadSheetsData_' + Date.now();
+        // Adicionar parâmetro de cache-busting
+        const cacheBuster = Date.now();
+        const callbackName = 'loadSheetsData_' + cacheBuster;
 
         return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
@@ -119,11 +119,6 @@ async function loadFromSheets(showLoading = true) {
                     });
 
                     syncStatus.lastLoaded = new Date();
-                    
-                    if (showLoading) {
-                        showSyncStatus('✓ Atualizado', 'success');
-                    }
-                    
                     console.log('✅ Dados carregados do Sheets');
                     resolve();
                 } else {
@@ -137,7 +132,8 @@ async function loadFromSheets(showLoading = true) {
             }
 
             const script = document.createElement('script');
-            script.src = `${SHEETS_API_URL}?callback=${callbackName}&t=${Date.now()}`;
+            // Cache-busting na URL
+            script.src = `${SHEETS_API_URL}?callback=${callbackName}&_=${cacheBuster}`;
             script.onerror = () => {
                 clearTimeout(timeout);
                 cleanup();
@@ -159,8 +155,10 @@ async function loadFromSheets(showLoading = true) {
 
 function saveToLocalStorage(data) {
     try {
-        localStorage.setItem('doceGestaoData', JSON.stringify(data));
-        console.log('💾 Backup local salvo');
+        data.cacheVersion = CACHE_VERSION;
+        data.lastAccess = Date.now();
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        console.log('💾 Backup local salvo (versão:', CACHE_VERSION + ')');
     } catch (error) {
         console.error('❌ Erro ao salvar localmente:', error);
     }
@@ -168,44 +166,69 @@ function saveToLocalStorage(data) {
 
 function loadFromLocalStorage() {
     try {
-        const saved = localStorage.getItem('doceGestaoData');
+        // Limpar versões antigas do cache
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('doceGestaoData') && key !== CACHE_KEY) {
+                localStorage.removeItem(key);
+                console.log('🧹 Cache antigo removido:', key);
+            }
+        }
+
+        const saved = localStorage.getItem(CACHE_KEY);
         if (!saved) {
-            console.log('ℹ️ Nenhum dado local encontrado');
+            console.log('ℹ️ Nenhum cache válido encontrado');
             return false;
         }
 
         const data = JSON.parse(saved);
 
-        // NOVO: Verificar idade dos dados
+        // Verificar versão do cache
+        if (data.cacheVersion !== CACHE_VERSION) {
+            console.log('⚠️ Versão do cache incompatível');
+            localStorage.removeItem(CACHE_KEY);
+            return false;
+        }
+
+        // Verificar idade dos dados
         if (data.timestamp) {
             const savedTime = new Date(data.timestamp);
             const now = new Date();
             const ageInMs = now - savedTime;
             const ageInMinutes = ageInMs / 1000 / 60;
 
-            console.log(`💾 Dados locais têm ${ageInMinutes.toFixed(1)} minutos`);
+            console.log(`💾 Cache tem ${ageInMinutes.toFixed(1)} minutos`);
 
-            // Se dados têm mais de 5 minutos, são considerados antigos
+            // Cache expirado
             if (ageInMs > CONFIG.CACHE_MAX_AGE) {
-                console.log('⚠️ Dados locais desatualizados (>5 min)');
-                return false; // Forçar reload do Sheets
+                console.log('⚠️ Cache expirado (>3 min)');
+                return false;
             }
         }
 
-        // Carregar dados locais
+        // Verificar último acesso (força reload após 24h)
+        if (data.lastAccess) {
+            const timeSinceAccess = Date.now() - data.lastAccess;
+            if (timeSinceAccess > CONFIG.FORCE_RELOAD_INTERVAL) {
+                console.log('⚠️ Forçando reload após 24h');
+                localStorage.removeItem(CACHE_KEY);
+                return false;
+            }
+        }
+
+        // Carregar dados do cache
         if (data.settings) state.settings = data.settings;
         if (data.categories) state.categories = data.categories;
         if (data.items) state.items = data.items;
 
-        updateUI();
-
         const timestamp = new Date(data.timestamp).toLocaleString();
-        console.log('💾 Dados locais carregados:', timestamp);
-        
+        console.log('💾 Cache válido carregado:', timestamp);
+
         return true;
 
     } catch (error) {
-        console.error('❌ Erro ao carregar dados locais:', error);
+        console.error('❌ Erro ao carregar cache:', error);
+        localStorage.removeItem(CACHE_KEY);
         return false;
     }
 }
@@ -226,6 +249,48 @@ function updateUI() {
     document.querySelectorAll('.color-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.color === state.settings.themeColor);
     });
+
+    // Atualizar última visualização
+    updateLastAccess();
+}
+
+// Atualizar timestamp de último acesso
+function updateLastAccess() {
+    try {
+        const saved = localStorage.getItem(CACHE_KEY);
+        if (saved) {
+            const data = JSON.parse(saved);
+            data.lastAccess = Date.now();
+            localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        }
+    } catch (e) {
+        console.error('Erro ao atualizar último acesso:', e);
+    }
+}
+
+// ============================================
+// MOSTRAR/ESCONDER LOADING
+// ============================================
+
+function showLoading() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.classList.remove('hidden');
+    }
+}
+
+function hideLoading() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    const mainContainer = document.querySelector('.main-container');
+
+    if (loadingScreen) {
+        loadingScreen.classList.add('hidden');
+    }
+
+    if (mainContainer) {
+        mainContainer.style.opacity = '1';
+        mainContainer.style.transition = 'opacity 0.5s ease';
+    }
 }
 
 // ============================================
@@ -234,7 +299,6 @@ function updateUI() {
 
 function scheduleAutoSave() {
     syncStatus.hasUnsavedChanges = true;
-    showSyncStatus('Não salvo...', 'warning');
 
     if (syncStatus.saveTimeout) {
         clearTimeout(syncStatus.saveTimeout);
@@ -252,10 +316,10 @@ function scheduleAutoSave() {
 function startAutoSync() {
     // Verificar atualizações periodicamente
     setInterval(async () => {
-        // Só sincronizar se não estiver editando (sem mudanças não salvas)
+        // Só sincronizar se não estiver editando
         if (!syncStatus.hasUnsavedChanges && !syncStatus.isSyncing) {
             try {
-                await loadFromSheets(false); // Sem mostrar loading
+                await loadFromSheets(false);
                 console.log('🔄 Auto-sync: Dados atualizados');
             } catch (e) {
                 console.log('⚠️ Auto-sync: Falha silenciosa');
@@ -282,270 +346,82 @@ function setupVisibilitySync() {
 }
 
 // ============================================
-// BOTÃO DE REFRESH MANUAL
-// ============================================
-
-function addRefreshButton() {
-    const header = document.querySelector('.header-container');
-    
-    const refreshBtn = document.createElement('button');
-    refreshBtn.className = 'btn-primary';
-    refreshBtn.style.marginLeft = '8px';
-    refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
-    refreshBtn.title = 'Atualizar dados do servidor';
-    
-    refreshBtn.addEventListener('click', async () => {
-        const icon = refreshBtn.querySelector('i');
-        icon.classList.add('fa-spin');
-        
-        try {
-            await loadFromSheets(true);
-            alert('✅ Dados atualizados com sucesso!');
-        } catch (e) {
-            console.error('Erro detalhado:', e);
-            
-            // Oferecer limpar cache
-            const shouldClear = confirm(
-                '❌ Não foi possível carregar do servidor.\n\n' +
-                'Possíveis causas:\n' +
-                '• Cache corrompido\n' +
-                '• Problema de conexão\n' +
-                '• URL do Sheets incorreta\n\n' +
-                'Deseja limpar o cache e tentar novamente?'
-            );
-            
-            if (shouldClear) {
-                clearCacheAndReload();
-            }
-        }
-        
-        icon.classList.remove('fa-spin');
-    });
-    
-    header.appendChild(refreshBtn);
-    
-    // Adicionar botão de limpar cache
-    const clearBtn = document.createElement('button');
-    clearBtn.className = 'btn-primary';
-    clearBtn.style.marginLeft = '8px';
-    clearBtn.style.background = '#f59e0b';
-    clearBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-    clearBtn.title = 'Limpar cache e recarregar';
-    
-    clearBtn.addEventListener('click', clearCacheAndReload);
-    
-    header.appendChild(clearBtn);
-}
-
-// ============================================
-// INDICADOR VISUAL
-// ============================================
-
-function createSyncIndicator() {
-    const indicator = document.createElement('div');
-    indicator.id = 'syncIndicator';
-    indicator.style.cssText = `
-        position: fixed;
-        top: 70px;
-        right: 20px;
-        background: white;
-        padding: 8px 16px;
-        border-radius: 20px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        font-size: 12px;
-        font-weight: bold;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        z-index: 1000;
-        transition: all 0.3s;
-        border: 1px solid #e5e7eb;
-        cursor: pointer;
-    `;
-
-    indicator.innerHTML = `
-        <i class="fas fa-cloud" style="font-size: 14px;"></i>
-        <span id="syncText">Inicializando...</span>
-    `;
-
-    indicator.addEventListener('click', showDetailedStatus);
-    document.body.appendChild(indicator);
-}
-
-function showSyncStatus(message, type = 'info') {
-    const indicator = document.getElementById('syncIndicator');
-    if (!indicator) return;
-
-    const text = document.getElementById('syncText');
-    const icon = indicator.querySelector('i');
-
-    text.textContent = message;
-
-    indicator.style.background = 'white';
-    indicator.style.color = '#6b7280';
-    indicator.style.borderColor = '#e5e7eb';
-
-    switch(type) {
-        case 'success':
-            indicator.style.background = '#dcfce7';
-            indicator.style.color = '#16a34a';
-            indicator.style.borderColor = '#86efac';
-            icon.className = 'fas fa-check-circle';
-
-            setTimeout(() => {
-                if (text.textContent === message) {
-                    indicator.style.opacity = '0.7';
-                    text.textContent = 'Online';
-                    icon.className = 'fas fa-cloud';
-                }
-            }, 3000);
-            break;
-
-        case 'error':
-            indicator.style.background = '#fee2e2';
-            indicator.style.color = '#dc2626';
-            indicator.style.borderColor = '#fca5a5';
-            icon.className = 'fas fa-exclamation-circle';
-            break;
-
-        case 'warning':
-            indicator.style.background = '#fef3c7';
-            indicator.style.color = '#d97706';
-            indicator.style.borderColor = '#fcd34d';
-            icon.className = 'fas fa-exclamation-triangle';
-            break;
-
-        case 'saving':
-        case 'loading':
-            indicator.style.background = '#dbeafe';
-            indicator.style.color = '#2563eb';
-            indicator.style.borderColor = '#93c5fd';
-            icon.className = 'fas fa-spinner fa-spin';
-            break;
-
-        default:
-            icon.className = 'fas fa-cloud';
-    }
-}
-
-function showDetailedStatus() {
-    const lastSaved = syncStatus.lastSaved 
-        ? syncStatus.lastSaved.toLocaleTimeString() 
-        : 'Nunca';
-    
-    const lastLoaded = syncStatus.lastLoaded
-        ? syncStatus.lastLoaded.toLocaleTimeString()
-        : 'Nunca';
-
-    const unsaved = syncStatus.hasUnsavedChanges ? 'Sim' : 'Não';
-    
-    // Verificar cache
-    const saved = localStorage.getItem('doceGestaoData');
-    let cacheInfo = 'Nenhum';
-    if (saved) {
-        try {
-            const data = JSON.parse(saved);
-            const age = data.timestamp ? Math.floor((Date.now() - new Date(data.timestamp)) / 60000) : '?';
-            cacheInfo = `${age} minutos`;
-        } catch (e) {
-            cacheInfo = 'Corrompido';
-        }
-    }
-
-    const message = `📊 Status de Sincronização\n\n` +
-          `Último carregamento: ${lastLoaded}\n` +
-          `Último salvamento: ${lastSaved}\n` +
-          `Alterações não salvas: ${unsaved}\n` +
-          `Idade do cache: ${cacheInfo}\n` +
-          `Fila de salvamentos: ${syncStatus.saveQueue.length}\n\n` +
-          `🔄 Auto-sync: Ativo (30s)\n` +
-          `💾 Backup local: Ativo\n\n` +
-          `⚠️ Problemas com sincronização?\n` +
-          `Clique OK e depois em "Limpar Cache"`;
-    
-    alert(message);
-}
-
-// ============================================
-// LIMPAR CACHE E RECARREGAR
-// ============================================
-
-function clearCacheAndReload() {
-    if (confirm('🗑️ Limpar todos os dados locais e recarregar do servidor?\n\n⚠️ Certifique-se de que todas as alterações foram salvas!')) {
-        console.log('🗑️ Limpando cache...');
-        localStorage.removeItem('doceGestaoData');
-        
-        showSyncStatus('Limpando cache...', 'loading');
-        
-        setTimeout(async () => {
-            try {
-                await loadFromSheets(true);
-                alert('✅ Cache limpo e dados recarregados com sucesso!');
-            } catch (e) {
-                alert('❌ Erro ao recarregar. Verifique sua conexão e tente novamente.\n\nSe o problema persistir, tente em uma aba anônima.');
-            }
-        }, 500);
-    }
-}
-
-// ============================================
-// INICIALIZAÇÃO INTELIGENTE
+// INICIALIZAÇÃO INTELIGENTE V3
 // ============================================
 
 async function initializeSheetsIntegration() {
-    console.log('🔄 Inicializando sistema com limpeza automática de cache...');
+    console.log('🚀 Iniciando Doce Gestão v3...');
 
-    createSyncIndicator();
+    // Mostrar loading screen
+    showLoading();
 
-    // 1. LIMPEZA AUTOMÁTICA: Se os dados locais tiverem mais de 10 minutos,
-    // nós os ignoramos completamente para forçar o carregamento do servidor.
-    const saved = localStorage.getItem('doceGestaoData');
-    if (saved) {
-        try {
-            const data = JSON.parse(saved);
-            const age = data.timestamp ? (Date.now() - new Date(data.timestamp)) : 999999;
+    // Limpar caches antigos de outras versões
+    clearOldCaches();
 
-            // Se o cache for maior que 10 min, limpa para não dar conflito no mobile
-            if (age > 600000) {
-                localStorage.removeItem('doceGestaoData');
-                console.log('🧹 Cache antigo removido automaticamente');
-            }
-        } catch(e) {
-            localStorage.removeItem('doceGestaoData');
-        }
-    }
+    // ESTRATÉGIA: Sempre tentar Sheets primeiro
+    let loadedFromSheets = false;
 
-    // 2. Tentar carregar do Google Sheets IMEDIATAMENTE
     try {
-        showSyncStatus('Buscando dados...', 'loading');
+        console.log('☁️ Tentando carregar do Google Sheets...');
 
-        // No celular, ignoramos o LocalStorage no início para garantir que os dados venham da nuvem
-        await loadFromSheets(true);
-        console.log('✅ Dados frescos carregados do Sheets');
+        // Timeout mais curto
+        await Promise.race([
+            loadFromSheets(false),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Timeout')), CONFIG.LOAD_TIMEOUT)
+            )
+        ]);
+
+        loadedFromSheets = true;
+        console.log('✅ Dados carregados do Sheets com sucesso');
 
     } catch (error) {
-        console.error('⚠️ Falha ao carregar do Sheets, tentando backup local:', error);
+        console.warn('⚠️ Falha ao carregar do Sheets:', error.message);
 
-        // Só usa o LocalStorage se o Google Sheets falhar (sem internet, por exemplo)
-        const hasLocal = loadFromLocalStorage();
-        if (hasLocal) {
-            showSyncStatus('Modo offline', 'warning');
+        // Fallback: tentar cache local
+        const hasCache = loadFromLocalStorage();
+
+        if (hasCache) {
+            console.log('💾 Usando cache local como fallback');
+            updateUI();
         } else {
-            showSyncStatus('Erro de conexão', 'error');
+            console.log('ℹ️ Nenhum cache disponível, usando dados padrão');
         }
     }
 
-    // Configurações padrão do sistema
+    // Configurar auto-save e listeners
     setupEventListeners();
     overrideOriginalFunctions();
     startAutoSync();
     setupVisibilitySync();
 
-    // Remove o botão de atualizar manual para não confundir o usuário leigo
-    // addRefreshButton();
+    // Esconder loading após tudo carregar
+    setTimeout(hideLoading, loadedFromSheets ? 500 : 1000);
+
+    console.log('✨ Sistema inicializado com sucesso');
 }
+
+// Limpar caches de versões antigas
+function clearOldCaches() {
+    try {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('doceGestaoData') && key !== CACHE_KEY) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(key => {
+            localStorage.removeItem(key);
+            console.log('🧹 Cache antigo removido:', key);
+        });
+    } catch (e) {
+        console.error('Erro ao limpar caches:', e);
+    }
+}
+
 // ============================================
-// EVENT LISTENERS
+// EVENT LISTENERS E OVERRIDES
 // ============================================
 
 function setupEventListeners() {
@@ -601,6 +477,11 @@ function overrideOriginalFunctions() {
 // INICIAR
 // ============================================
 
-setTimeout(() => {
-    initializeSheetsIntegration();
-}, 500);
+// Aguardar DOM carregar
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(initializeSheetsIntegration, 100);
+    });
+} else {
+    setTimeout(initializeSheetsIntegration, 100);
+}
