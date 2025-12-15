@@ -533,7 +533,7 @@ function handleExportImage() {
 function openMenuLink() {
     const currentUrl = window.location.href;
     const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
-    const menuUrl = baseUrl + 'cardapio/cardapio.html';
+    const menuUrl = baseUrl + '../cardapio/cardapio.html';
 
     document.getElementById('menuLink').value = menuUrl;
     document.getElementById('modalLink').classList.add('active');
@@ -543,22 +543,56 @@ function closeModalLink() {
     document.getElementById('modalLink').classList.remove('active');
 }
 
-function copyMenuLink() {
+function copyMenuLink(event) {
     const linkInput = document.getElementById('menuLink');
     linkInput.select();
-    linkInput.setSelectionRange(0, 99999);
+    linkInput.setSelectionRange(0, 99999); // Para mobile
 
-    navigator.clipboard.writeText(linkInput.value).then(() => {
-        const btn = event.target.closest('button');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
-        btn.style.background = '#16a34a';
+    // Função interna para mostrar o sucesso (botão verde)
+    const showSuccess = () => {
+        // Tenta pegar o botão pelo evento, ou busca pelo seletor se falhar
+        const btn = event ? (event.currentTarget || event.target.closest('button')) : document.querySelector('#modalLink .btn-submit');
 
-        setTimeout(() => {
-            btn.innerHTML = originalText;
-            btn.style.background = '';
-        }, 2000);
-    }).catch(err => {
-        alert('Erro ao copiar link. Selecione e copie manualmente.');
-    });
+        if (btn) {
+            const originalText = '<i class="fas fa-copy"></i> Copiar Link'; // Texto original fixo para garantir retorno
+            btn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+            btn.style.background = '#16a34a';
+
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.background = '';
+            }, 2000);
+        }
+    };
+
+    // TENTATIVA 1: API Moderna (navigator.clipboard)
+    // Geralmente requer HTTPS
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(linkInput.value)
+            .then(showSuccess)
+            .catch(() => {
+                // Se falhar (ex: erro de permissão), vai para o método antigo
+                fallbackCopyText();
+            });
+    } else {
+        // Se o navegador for antigo
+        fallbackCopyText();
+    }
+
+    // TENTATIVA 2: Método Clássico (document.execCommand)
+    // Funciona melhor em testes locais e navegadores antigos
+    function fallbackCopyText() {
+        try {
+            // O texto já está selecionado pelo .select() acima
+            const successful = document.execCommand('copy');
+            if (successful) {
+                showSuccess();
+            } else {
+                throw new Error('Falha no comando copy');
+            }
+        } catch (err) {
+            console.error('Erro ao copiar:', err);
+            alert('Erro ao copiar link. Por favor, selecione e copie manualmente.');
+        }
+    }
 }

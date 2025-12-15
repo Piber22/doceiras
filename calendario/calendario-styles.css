@@ -1,0 +1,864 @@
+/* ============================================
+   MOBILE FIRST - CALENDARIO DE ENCOMENDAS
+   ============================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Nunito', sans-serif;
+    background-color: #FFF5F7;
+    min-height: 100vh;
+    padding-bottom: 80px;
+}
+
+/* ============================================
+   HEADER - MOBILE
+   ============================================ */
+
+header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    border-bottom: 1px solid #fce7f3;
+    box-shadow: 0 2px 8px rgba(236, 72, 153, 0.08);
+}
+
+.header-container {
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo-icon {
+    background: linear-gradient(135deg, #fce7f3, #fbcfe8);
+    padding: 10px;
+    border-radius: 12px;
+    color: #ec4899;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(236, 72, 153, 0.2);
+}
+
+.logo-icon i {
+    font-size: 22px;
+}
+
+.logo-text {
+    font-family: 'Pacifico', cursive;
+    font-size: 22px;
+    color: #ec4899;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #ec4899, #db2777);
+    color: white;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 50px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+    transition: all 0.3s;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-primary:active {
+    transform: scale(0.95);
+}
+
+/* ============================================
+   MAIN CONTAINER - MOBILE
+   ============================================ */
+
+.main-container {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 100%;
+}
+
+/* ============================================
+   CARDS
+   ============================================ */
+
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid #fce7f3;
+}
+
+.filter-card {
+    padding: 16px;
+}
+
+.card-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #374151;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.card-title i {
+    color: #f9a8d4;
+    font-size: 20px;
+}
+
+/* ============================================
+   STATUS FILTERS - MOBILE
+   ============================================ */
+
+.status-filters {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.filter-btn {
+    padding: 12px 8px;
+    border: 2px solid #fce7f3;
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: #9ca3af;
+}
+
+.filter-btn i {
+    font-size: 18px;
+}
+
+.filter-btn:active {
+    transform: scale(0.95);
+}
+
+.filter-btn.active.pendente {
+    border-color: #fbbf24;
+    background: #fef3c7;
+    color: #92400e;
+    border-width: 3px;
+}
+
+.filter-btn.active.pronto {
+    border-color: #3b82f6;
+    background: #dbeafe;
+    color: #1e40af;
+    border-width: 3px;
+}
+
+.filter-btn.active.entregue {
+    border-color: #10b981;
+    background: #dcfce7;
+    color: #065f46;
+    border-width: 3px;
+}
+
+/* ============================================
+   ORDERS LIST - MOBILE
+   ============================================ */
+
+.orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.order-card {
+    border: 2px solid #fce7f3;
+    border-radius: 16px;
+    padding: 16px;
+    transition: all 0.3s;
+    cursor: pointer;
+    background: white;
+    position: relative;
+}
+
+.order-card:active {
+    transform: scale(0.98);
+}
+
+.order-card.pendente {
+    border-left: 5px solid #fbbf24;
+    background: linear-gradient(to right, #fef3c7 0%, white 10%);
+}
+
+.order-card.pronto {
+    border-left: 5px solid #3b82f6;
+    background: linear-gradient(to right, #dbeafe 0%, white 10%);
+}
+
+.order-card.entregue {
+    border-left: 5px solid #10b981;
+    background: linear-gradient(to right, #dcfce7 0%, white 10%);
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    gap: 8px;
+}
+
+.order-client {
+    font-weight: bold;
+    color: #1f2937;
+    font-size: 17px;
+    flex: 1;
+}
+
+.order-status {
+    padding: 4px 10px;
+    border-radius: 50px;
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.order-status.pendente {
+    background: #fbbf24;
+    color: white;
+}
+
+.order-status.pronto {
+    background: #3b82f6;
+    color: white;
+}
+
+.order-status.entregue {
+    background: #10b981;
+    color: white;
+}
+
+.order-product {
+    color: #6b7280;
+    font-size: 14px;
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.order-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px dashed #e5e7eb;
+}
+
+.order-date {
+    font-size: 13px;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+}
+
+.order-date i {
+    color: #f9a8d4;
+}
+
+.order-value {
+    font-weight: bold;
+    color: #ec4899;
+    font-size: 18px;
+}
+
+/* ============================================
+   CALENDAR - MOBILE FIRST
+   ============================================ */
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 12px;
+}
+
+.calendar-month {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ec4899;
+    font-family: 'Pacifico', cursive;
+    flex: 1;
+    text-align: center;
+}
+
+.btn-nav {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: #fce7f3;
+    color: #ec4899;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.btn-nav:active {
+    transform: scale(0.9);
+    background: #fbcfe8;
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.calendar-weekday {
+    text-align: center;
+    font-weight: bold;
+    font-size: 12px;
+    color: #9ca3af;
+    padding: 8px 4px;
+}
+
+.calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    border: 2px solid #fce7f3;
+    border-radius: 10px;
+    padding: 6px 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 30px;
+}
+
+.calendar-day:active {
+    transform: scale(0.95);
+}
+
+.calendar-day.other-month {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.calendar-day.today {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-color: #fbbf24;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
+}
+
+.calendar-day.selected {
+    background: linear-gradient(135deg, #ec4899, #db2777);
+    border-color: #be185d;
+    color: white;
+}
+
+.calendar-day.has-orders {
+    border-color: #fb7185;
+    border-width: 3px;
+}
+
+.day-number {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.day-orders {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 2px;
+}
+
+.order-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+}
+
+.order-dot.pendente { background: #fbbf24; }
+.order-dot.pronto { background: #3b82f6; }
+.order-dot.entregue { background: #10b981; }
+
+/* ============================================
+   FLOATING ACTION BUTTON
+   ============================================ */
+
+.fab {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ec4899, #db2777);
+    color: white;
+    border: none;
+    box-shadow: 0 6px 20px rgba(236, 72, 153, 0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    transition: all 0.3s;
+    z-index: 40;
+}
+
+.fab:active {
+    transform: scale(0.9);
+}
+
+/* ============================================
+   MODAL - MOBILE FIRST
+   ============================================ */
+
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 50;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    width: 100%;
+    max-height: 90vh;
+    background: white;
+    padding: 0;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s;
+    overflow-y: auto;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    position: sticky;
+    top: 0;
+    background: white;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid #fce7f3;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+}
+
+.modal-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #ec4899;
+    font-family: 'Pacifico', cursive;
+}
+
+.btn-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: #fce7f3;
+    color: #ec4899;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.3s;
+}
+
+.btn-close:active {
+    transform: scale(0.9);
+    background: #fbcfe8;
+}
+
+#orderForm {
+    padding: 20px;
+}
+
+/* ============================================
+   FORM - MOBILE
+   ============================================ */
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: bold;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    background: #fdf2f8;
+    border: 2px solid #fce7f3;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 16px;
+    color: #1f2937;
+    transition: all 0.3s;
+    font-family: 'Nunito', sans-serif;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    background: white;
+    border-color: #f9a8d4;
+    box-shadow: 0 0 0 3px rgba(249, 168, 212, 0.1);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.status-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.status-option {
+    padding: 16px 8px;
+    border: 3px solid #fce7f3;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+    font-weight: 600;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: white;
+}
+
+.status-option i {
+    font-size: 20px;
+}
+
+.status-option:active {
+    transform: scale(0.95);
+}
+
+.status-option.pendente {
+    color: #92400e;
+}
+
+.status-option.pronto {
+    color: #1e40af;
+}
+
+.status-option.entregue {
+    color: #065f46;
+}
+
+.status-option.selected.pendente {
+    border-color: #fbbf24;
+    background: #fef3c7;
+    border-width: 4px;
+    transform: scale(1.05);
+}
+
+.status-option.selected.pronto {
+    border-color: #3b82f6;
+    background: #dbeafe;
+    border-width: 4px;
+    transform: scale(1.05);
+}
+
+.status-option.selected.entregue {
+    border-color: #10b981;
+    background: #dcfce7;
+    border-width: 4px;
+    transform: scale(1.05);
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    padding-top: 8px;
+}
+
+.btn-submit {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #ec4899, #db2777);
+    color: white;
+    font-weight: bold;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+    transition: all 0.3s;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-submit:active {
+    transform: scale(0.98);
+}
+
+.btn-delete {
+    width: 100%;
+    padding: 16px;
+    background: #ef4444;
+    color: white;
+    font-weight: bold;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 12px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-delete:active {
+    transform: scale(0.98);
+    background: #dc2626;
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #9ca3af;
+}
+
+.empty-state i {
+    font-size: 48px;
+    color: #fce7f3;
+    margin-bottom: 16px;
+}
+
+.empty-state p {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* ============================================
+   DESKTOP ADAPTATIONS
+   ============================================ */
+
+@media (min-width: 768px) {
+    .main-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 24px;
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        grid-template-rows: auto 1fr;
+        gap: 24px;
+    }
+
+    .filter-card {
+        grid-column: 1 / -1;
+    }
+
+    .status-filters {
+        grid-template-columns: repeat(3, 200px);
+        justify-content: center;
+    }
+
+    .card:nth-child(3) {
+        grid-row: 2;
+        grid-column: 2;
+    }
+
+    .card:nth-child(2) {
+        grid-row: 2;
+        grid-column: 1;
+    }
+
+    .fab {
+        display: none;
+    }
+
+    .btn-text {
+        display: inline;
+    }
+
+    .logo-text {
+        font-size: 26px;
+    }
+
+    .calendar-weekday {
+        font-size: 14px;
+    }
+
+    .calendar-day {
+        min-height: 70px;
+        padding: 10px;
+    }
+
+    .day-number {
+        font-size: 16px;
+    }
+
+    .order-dot {
+        width: 6px;
+        height: 6px;
+    }
+
+    .modal {
+        align-items: center;
+        padding: 20px;
+    }
+
+    .modal-content {
+        max-width: 600px;
+        max-height: 90vh;
+        border-radius: 24px;
+        animation: slideIn 0.3s;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .modal-header {
+        padding: 24px 32px 20px;
+    }
+
+    #orderForm {
+        padding: 32px;
+        padding-top: 0;
+    }
+}
+
+@media (min-width: 1024px) {
+    .main-container {
+        max-width: 1400px;
+    }
+
+    .calendar-month {
+        font-size: 26px;
+    }
+
+    .order-card:hover {
+        transform: translateX(4px);
+        border-color: #f9a8d4;
+    }
+
+    .calendar-day:hover {
+        border-color: #f9a8d4;
+        transform: scale(1.05);
+    }
+
+    .filter-btn:hover {
+        border-color: #f9a8d4;
+    }
+
+    .btn-nav:hover {
+        background: #fbcfe8;
+        transform: scale(1.1);
+    }
+
+    .fab:hover {
+        transform: scale(1.1);
+    }
+}
+
+/* ============================================
+   HIDE MOBILE-ONLY ON DESKTOP
+   ============================================ */
+
+@media (min-width: 768px) {
+    .btn-text {
+        display: inline;
+    }
+}
+
+@media (max-width: 767px) {
+    .btn-text {
+        display: none;
+    }
+}
