@@ -4,7 +4,7 @@
 
 const SHEETS_CONFIG = {
     // Cole aqui a URL da sua API do Google Apps Script
-    apiUrl: 'https://script.google.com/macros/s/AKfycbwEfHf6Q27m3cz6aMG5jeNOK3VyDQ6ihiAhqd_rhGPSK3eivySripEx32TAOR533j5u/exec',
+    apiUrl: 'https://script.google.com/macros/s/AKfycbyhr2k8j8cui8cZvjHSCnhJMu0Tw8AEjyMAhBXAQWmCbGAQ_GG4rXya4fl1g5Hdleo/exec',
 
     // Timeout para requisições (em milissegundos)
     timeout: 10000
@@ -16,21 +16,21 @@ const SHEETS_CONFIG = {
 
 /**
  * Faz requisição para a API do Google Sheets
+ * IMPORTANTE: Usa URLSearchParams para evitar CORS preflight
  */
 async function sheetsRequest(action, data = {}) {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), SHEETS_CONFIG.timeout);
 
-        const response = await fetch(SHEETS_CONFIG.apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: action,
-                data: data
-            }),
+        // Monta a URL com parâmetros para GET
+        const params = new URLSearchParams({
+            action: action,
+            data: JSON.stringify(data)
+        });
+
+        const response = await fetch(`${SHEETS_CONFIG.apiUrl}?${params.toString()}`, {
+            method: 'GET',
             signal: controller.signal
         });
 
