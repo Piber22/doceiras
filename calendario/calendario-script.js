@@ -56,11 +56,33 @@ let state = {
 // INITIALIZE
 // ============================================
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     initializeEventListeners();
+
+    // Verifica se a API está configurada
+    if (!SheetsAPI.isConfigured()) {
+        alert('Configure a URL da API no arquivo sheets-integration.js');
+        return;
+    }
+
+    // Carrega dados da planilha
+    await loadOrdersFromSheets();
+
     renderCalendar();
     renderOrdersList();
 });
+
+async function loadOrdersFromSheets() {
+    try {
+        SheetsAPI.showLoading('Carregando encomendas...');
+        const orders = await SheetsAPI.getOrders();
+        state.orders = orders;
+        SheetsAPI.hideLoading();
+    } catch (error) {
+        SheetsAPI.hideLoading();
+        SheetsAPI.showError(error.message);
+    }
+}
 
 // ============================================
 // EVENT LISTENERS
@@ -388,7 +410,7 @@ function selectStatus(e) {
     option.classList.add('selected');
 }
 
-function handleSaveOrder(e) {
+async function handleSaveOrder(e) {
     e.preventDefault();
 
     const client = document.getElementById('orderClient').value.trim();
@@ -403,21 +425,11 @@ function handleSaveOrder(e) {
         return;
     }
 
-    if (state.editingOrder) {
-        // Edit existing order
-        const order = state.orders.find(o => o.id === state.editingOrder.id);
-        if (order) {
-            order.client = client;
-            order.product = product;
-            order.date = date;
-            order.value = value;
-            order.status = status;
-            order.notes = notes;
-        }
-    } else {
-        // Add new order
-        const newOrder = {
-            id: Date.now().toString(),
+    // NOVO: Salvar no Google Sheets
+    try {
+        SheetsAPI.showLoading('Salvando...');
+
+        const orderData = {
             client,
             product,
             date,
@@ -425,27 +437,58 @@ function handleSaveOrder(e) {
             status,
             notes
         };
-        state.orders.push(newOrder);
-    }
 
-    renderCalendar();
-    renderOrdersList();
-    closeModal();
+        if (state.editingOrder) {
+            orderData.id = state.editingOrder.id;
+        }
 
-    // Show success feedback (opcional)
-    showToast(state.editingOrder ? 'Encomenda atualizada!' : 'Encomenda adicionada!');
-}
+        const savedOrder = await SheetsAPI.saveOrder(orderData);
 
-function deleteOrder() {
-    if (!state.editingOrder) return;
+        // Atualiza o state local
+        if (state.editingOrder) {
+            const index = state.orders.findIndex(o => o.id === state.editingOrder.id);
+            if (index !== -1) {
+                state.orders[index] = savedOrder;
+            }
+        } else {
+            state.orders.push(savedOrder);
+        }
 
-    if (confirm('Tem certeza que deseja excluir esta encomenda?')) {
-        state.orders = state.orders.filter(o => o.id !== state.editingOrder.id);
+        SheetsAPI.hideLoading();
         renderCalendar();
         renderOrdersList();
         closeModal();
 
-        showToast('Encomenda excluída!');
+        showToast(state.editingOrder ? 'Encomenda atualizada!' : 'Encomenda adicionada!');
+
+    } catch (error) {
+        SheetsAPI.hideLoading();
+        SheetsAPI.showError(error.message);
+    }
+}
+
+async function deleteOrder() {
+    if (!state.editingOrder) return;
+
+    if (confirm('Tem certeza que deseja excluir esta encomenda?')) {
+        try {
+            SheetsAPI.showLoading('Excluindo...');
+
+            await SheetsAPI.removeOrder(state.editingOrder.id);
+
+            state.orders = state.orders.filter(o => o.id !== state.editingOrder.id);
+
+            SheetsAPI.hideLoading();
+            renderCalendar();
+            renderOrdersList();
+            closeModal();
+
+            showToast('Encomenda excluída!');
+
+        } catch (error) {
+            SheetsAPI.hideLoading();
+            SheetsAPI.showError(error.message);
+        }
     }
 }
 
