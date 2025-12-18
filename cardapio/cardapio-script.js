@@ -3,7 +3,7 @@
 // ============================================
 
 // Usar a mesma URL do Google Sheets
-const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbxs3-BUH6JeWt5cXF_ZWmoh9fibYV2qPdGLoM8zbC6Sg2pcV005GHKkDwUUSqHCUtqC/exec';
+const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbxfZRwumUk1HhRfnimEGMTvOymqObpgDV5TaUWQPqe1tAhgKjGDLkOHCiWQMd0dDKyx/exec';
 
 // State
 let menuData = {
