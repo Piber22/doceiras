@@ -4,7 +4,7 @@
 
 const SHEETS_CONFIG = {
     // Cole aqui a URL da sua API do Google Apps Script
-    apiUrl: 'https://script.google.com/macros/s/AKfycbyhr2k8j8cui8cZvjHSCnhJMu0Tw8AEjyMAhBXAQWmCbGAQ_GG4rXya4fl1g5Hdleo/exec',
+    apiUrl: 'https://script.google.com/macros/s/AKfycbxfWuDeB-3BfO7pDm-50gLf5VaBW3o1HqdGvInpI_FjsJtTVVkBQQVjiH4TUqylJA4D/exec',
 
     // Timeout para requisições (em milissegundos)
     timeout: 10000
