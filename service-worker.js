@@ -1,14 +1,13 @@
 const CACHE_NAME = 'doce-gestao-v1';
 const urlsToCache = [
-  '/index.html',
-  '/home-styles.css',
-  '/home-script.js',
-  '/calendario/calendario.html',
-  '/editarcardapio/editarcardapio.html',
-  '/cardapio/cardapio.html',
-  '/orcamento/orcamento.html',
-  'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Pacifico&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+  './',
+  './index.html',
+  './home-styles.css',
+  './home-script.js',
+  './calendario/calendario.html',
+  './editarcardapio/editarcardapio.html',
+  './cardapio/cardapio.html',
+  './orcamento/orcamento.html'
 ];
 
 // Instalação do Service Worker
@@ -19,7 +18,11 @@ self.addEventListener('install', (event) => {
         console.log('Cache aberto');
         return cache.addAll(urlsToCache);
       })
+      .catch((error) => {
+        console.log('Erro ao cachear:', error);
+      })
   );
+  self.skipWaiting();
 });
 
 // Ativação do Service Worker
@@ -36,6 +39,7 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+  self.clients.claim();
 });
 
 // Interceptação de requisições
@@ -43,26 +47,33 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Retorna do cache se encontrado, senão busca na rede
+        // Retorna do cache se encontrado
         if (response) {
           return response;
         }
-        return fetch(event.request).then((response) => {
-          // Verifica se a resposta é válida
-          if (!response || response.status !== 200 || response.type !== 'basic') {
+
+        // Caso contrário, busca na rede
+        return fetch(event.request)
+          .then((response) => {
+            // Verifica se a resposta é válida
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+
+            // Clona a resposta para armazenar no cache
+            const responseToCache = response.clone();
+
+            caches.open(CACHE_NAME)
+              .then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+
             return response;
-          }
-
-          // Clona a resposta para armazenar no cache
-          const responseToCache = response.clone();
-
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-
-          return response;
-        });
+          })
+          .catch(() => {
+            // Se falhar, tenta retornar a página inicial do cache
+            return caches.match('./index.html');
+          });
       })
   );
 });
