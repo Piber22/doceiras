@@ -3,7 +3,7 @@
 // SOLUÇÃO DEFINITIVA: Cache-busting + Loading Screen
 // ============================================
 
-const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbxs3-BUH6JeWt5cXF_ZWmoh9fibYV2qPdGLoM8zbC6Sg2pcV005GHKkDwUUSqHCUtqC/exec';
+const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwgmZGhyDszi1G_Gd-LAsz0LpmHK8nREWMvtnlcQNOdxkzzMeo2-A-SixSMZDp5vz2F/exec';
 
 // Chave única para versão do cache
 const CACHE_VERSION = 'v3';
