@@ -1,13 +1,9 @@
 // ============================================
-// GOOGLE SHEETS INTEGRATION V3
-// SOLUÇÃO DEFINITIVA: Cache-busting + Loading Screen
+// GOOGLE SHEETS INTEGRATION V4
+// SEMPRE PRIORIZA SHEETS - SEM CACHE LOCAL
 // ============================================
 
 const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbxfZRwumUk1HhRfnimEGMTvOymqObpgDV5TaUWQPqe1tAhgKjGDLkOHCiWQMd0dDKyx/exec';
-
-// Chave única para versão do cache
-const CACHE_VERSION = 'v3';
-const CACHE_KEY = `doceGestaoData_${CACHE_VERSION}`;
 
 // Estado de sincronização
 let syncStatus = {
@@ -22,9 +18,9 @@ let syncStatus = {
 // Configurações
 const CONFIG = {
     AUTO_SYNC_INTERVAL: 30000, // 30 segundos
-    CACHE_MAX_AGE: 180000, // 3 minutos
-    LOAD_TIMEOUT: 10000, // 10 segundos
-    FORCE_RELOAD_INTERVAL: 86400000 // 24 horas
+    LOAD_TIMEOUT: 15000, // 15 segundos
+    SAVE_RETRY_ATTEMPTS: 2,
+    RETRY_DELAY_MS: 1000
 };
 
 // ============================================
@@ -38,8 +34,16 @@ async function saveToSheets() {
         return;
     }
 
+    // Verificar conexão
+    if (!navigator.onLine) {
+        console.warn('📴 Sem conexão - dados não salvos no servidor');
+        syncStatus.hasUnsavedChanges = true;
+        return;
+    }
+
     try {
         syncStatus.isSyncing = true;
+        console.log('💾 Iniciando salvamento no Google Sheets...');
 
         const dataToSave = {
             type: 'saveAll',
@@ -49,32 +53,59 @@ async function saveToSheets() {
             timestamp: new Date().toISOString()
         };
 
-        // Salvar no localStorage primeiro (garantia)
-        saveToLocalStorage(dataToSave);
-
-        // Enviar para Google Sheets com cache-busting
-        await fetch(`${SHEETS_API_URL}?_=${Date.now()}`, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(dataToSave)
+        console.log('📤 Dados a serem enviados:', {
+            categorias: dataToSave.categories.length,
+            itens: dataToSave.items.length,
+            timestamp: dataToSave.timestamp
         });
 
-        syncStatus.lastSaved = new Date();
-        syncStatus.hasUnsavedChanges = false;
+        // Enviar para Google Sheets com retry
+        let lastError;
+        for (let attempt = 0; attempt < CONFIG.SAVE_RETRY_ATTEMPTS; attempt++) {
+            try {
+                console.log(`🔄 Tentativa ${attempt + 1}/${CONFIG.SAVE_RETRY_ATTEMPTS}...`);
 
-        console.log('✅ Dados salvos às', syncStatus.lastSaved.toLocaleTimeString());
+                await fetch(`${SHEETS_API_URL}?_=${Date.now()}`, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(dataToSave)
+                });
 
-        // Processar fila
-        if (syncStatus.saveQueue.length > 0) {
-            syncStatus.saveQueue = [];
-            setTimeout(() => saveToSheets(), 1000);
+                syncStatus.lastSaved = new Date();
+                syncStatus.hasUnsavedChanges = false;
+
+                console.log('✅ Dados salvos com sucesso às', syncStatus.lastSaved.toLocaleTimeString());
+
+                // Processar fila
+                if (syncStatus.saveQueue.length > 0) {
+                    console.log(`📋 Processando ${syncStatus.saveQueue.length} item(ns) da fila...`);
+                    syncStatus.saveQueue = [];
+                    setTimeout(() => saveToSheets(), 1000);
+                }
+
+                return; // Sucesso
+
+            } catch (error) {
+                lastError = error;
+                console.warn(`⚠️ Tentativa ${attempt + 1} falhou:`, error.message);
+
+                if (attempt < CONFIG.SAVE_RETRY_ATTEMPTS - 1) {
+                    const delay = CONFIG.RETRY_DELAY_MS * (attempt + 1);
+                    console.log(`⏱️ Aguardando ${delay}ms antes da próxima tentativa...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
         }
 
+        throw lastError || new Error('Falha em todas as tentativas');
+
     } catch (error) {
-        console.error('❌ Erro ao salvar:', error);
+        console.error('❌ Erro ao salvar no Google Sheets:', error);
+        console.error('Stack trace:', error.stack);
+        syncStatus.hasUnsavedChanges = true;
 
     } finally {
         syncStatus.isSyncing = false;
@@ -82,155 +113,123 @@ async function saveToSheets() {
 }
 
 // ============================================
-// CARREGAR DO SHEETS (PRIORIDADE)
+// CARREGAR DO SHEETS (SEMPRE PRIORIDADE)
 // ============================================
 
-async function loadFromSheets(showLoading = true) {
+async function loadFromSheets() {
+    console.log('☁️ Carregando dados do Google Sheets...');
+
+    // ESTRATÉGIA 1: Tentar Fetch API primeiro
     try {
-        // Adicionar parâmetro de cache-busting
+        console.log('🔵 Tentativa 1: Fetch API...');
         const cacheBuster = Date.now();
-        const callbackName = 'loadSheetsData_' + cacheBuster;
 
-        return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                cleanup();
-                reject(new Error('Timeout ao carregar'));
-            }, CONFIG.LOAD_TIMEOUT);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONFIG.LOAD_TIMEOUT);
 
-            window[callbackName] = function(data) {
-                clearTimeout(timeout);
-                cleanup();
-
-                if (data && data.success) {
-                    // Atualizar estado
-                    if (data.settings) state.settings = data.settings;
-                    if (data.categories) state.categories = data.categories;
-                    if (data.items) state.items = data.items;
-
-                    // Re-renderizar
-                    updateUI();
-
-                    // Salvar no localStorage
-                    saveToLocalStorage({
-                        settings: state.settings,
-                        categories: state.categories,
-                        items: state.items,
-                        timestamp: new Date().toISOString()
-                    });
-
-                    syncStatus.lastLoaded = new Date();
-                    console.log('✅ Dados carregados do Sheets');
-                    resolve();
-                } else {
-                    reject(new Error('Dados inválidos'));
-                }
-            };
-
-            function cleanup() {
-                if (window[callbackName]) delete window[callbackName];
-                if (script && script.parentNode) script.parentNode.removeChild(script);
-            }
-
-            const script = document.createElement('script');
-            // Cache-busting na URL
-            script.src = `${SHEETS_API_URL}?callback=${callbackName}&_=${cacheBuster}`;
-            script.onerror = () => {
-                clearTimeout(timeout);
-                cleanup();
-                reject(new Error('Erro ao carregar script'));
-            };
-
-            document.head.appendChild(script);
+        const response = await fetch(`${SHEETS_API_URL}?action=getData&_=${cacheBuster}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            },
+            cache: 'no-cache',
+            credentials: 'omit',
+            signal: controller.signal
         });
 
-    } catch (error) {
-        console.error('⚠️ Não foi possível carregar do Sheets:', error);
-        throw error;
-    }
-}
+        clearTimeout(timeoutId);
 
-// ============================================
-// LOCAL STORAGE COM VALIDAÇÃO
-// ============================================
+        if (response.ok) {
+            const data = await response.json();
 
-function saveToLocalStorage(data) {
-    try {
-        data.cacheVersion = CACHE_VERSION;
-        data.lastAccess = Date.now();
-        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-        console.log('💾 Backup local salvo (versão:', CACHE_VERSION + ')');
-    } catch (error) {
-        console.error('❌ Erro ao salvar localmente:', error);
-    }
-}
+            if (data && data.success) {
+                console.log('✅ Dados recebidos via Fetch API:', {
+                    categorias: data.categories?.length || 0,
+                    itens: data.items?.length || 0,
+                    timestamp: data.timestamp
+                });
 
-function loadFromLocalStorage() {
-    try {
-        // Limpar versões antigas do cache
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('doceGestaoData') && key !== CACHE_KEY) {
-                localStorage.removeItem(key);
-                console.log('🧹 Cache antigo removido:', key);
+                // Atualizar estado
+                if (data.settings) state.settings = data.settings;
+                if (data.categories) state.categories = data.categories;
+                if (data.items) state.items = data.items;
+
+                updateUI();
+                syncStatus.lastLoaded = new Date();
+                console.log('✅ Interface atualizada com sucesso');
+                return;
             }
         }
-
-        const saved = localStorage.getItem(CACHE_KEY);
-        if (!saved) {
-            console.log('ℹ️ Nenhum cache válido encontrado');
-            return false;
+    } catch (fetchError) {
+        if (fetchError.name === 'AbortError') {
+            console.warn('⚠️ Fetch API - Timeout após', CONFIG.LOAD_TIMEOUT, 'ms');
+        } else {
+            console.warn('⚠️ Fetch API falhou:', fetchError.message);
         }
-
-        const data = JSON.parse(saved);
-
-        // Verificar versão do cache
-        if (data.cacheVersion !== CACHE_VERSION) {
-            console.log('⚠️ Versão do cache incompatível');
-            localStorage.removeItem(CACHE_KEY);
-            return false;
-        }
-
-        // Verificar idade dos dados
-        if (data.timestamp) {
-            const savedTime = new Date(data.timestamp);
-            const now = new Date();
-            const ageInMs = now - savedTime;
-            const ageInMinutes = ageInMs / 1000 / 60;
-
-            console.log(`💾 Cache tem ${ageInMinutes.toFixed(1)} minutos`);
-
-            // Cache expirado
-            if (ageInMs > CONFIG.CACHE_MAX_AGE) {
-                console.log('⚠️ Cache expirado (>3 min)');
-                return false;
-            }
-        }
-
-        // Verificar último acesso (força reload após 24h)
-        if (data.lastAccess) {
-            const timeSinceAccess = Date.now() - data.lastAccess;
-            if (timeSinceAccess > CONFIG.FORCE_RELOAD_INTERVAL) {
-                console.log('⚠️ Forçando reload após 24h');
-                localStorage.removeItem(CACHE_KEY);
-                return false;
-            }
-        }
-
-        // Carregar dados do cache
-        if (data.settings) state.settings = data.settings;
-        if (data.categories) state.categories = data.categories;
-        if (data.items) state.items = data.items;
-
-        const timestamp = new Date(data.timestamp).toLocaleString();
-        console.log('💾 Cache válido carregado:', timestamp);
-
-        return true;
-
-    } catch (error) {
-        console.error('❌ Erro ao carregar cache:', error);
-        localStorage.removeItem(CACHE_KEY);
-        return false;
     }
+
+    // ESTRATÉGIA 2: Fallback para JSONP
+    console.log('🟡 Tentativa 2: JSONP Fallback...');
+
+    return new Promise((resolve, reject) => {
+        const cacheBuster = Date.now();
+        const callbackName = 'loadSheetsData_' + cacheBuster;
+        let timeoutId;
+        let script;
+
+        const cleanup = () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            if (window[callbackName]) delete window[callbackName];
+            if (script && script.parentNode) script.parentNode.removeChild(script);
+        };
+
+        // Timeout
+        timeoutId = setTimeout(() => {
+            cleanup();
+            console.error('❌ JSONP - Timeout após', CONFIG.LOAD_TIMEOUT, 'ms');
+            reject(new Error('Timeout ao carregar via JSONP'));
+        }, CONFIG.LOAD_TIMEOUT);
+
+        // Callback
+        window[callbackName] = function(data) {
+            cleanup();
+
+            if (data && data.success) {
+                console.log('✅ Dados recebidos via JSONP:', {
+                    categorias: data.categories?.length || 0,
+                    itens: data.items?.length || 0,
+                    timestamp: data.timestamp
+                });
+
+                // Atualizar estado
+                if (data.settings) state.settings = data.settings;
+                if (data.categories) state.categories = data.categories;
+                if (data.items) state.items = data.items;
+
+                updateUI();
+                syncStatus.lastLoaded = new Date();
+                console.log('✅ Interface atualizada com sucesso');
+                resolve();
+            } else {
+                console.error('❌ Dados inválidos recebidos:', data);
+                reject(new Error('Dados inválidos'));
+            }
+        };
+
+        // Criar script
+        script = document.createElement('script');
+        script.src = `${SHEETS_API_URL}?callback=${callbackName}&_=${cacheBuster}`;
+        script.setAttribute('crossorigin', 'anonymous');
+
+        script.onerror = (error) => {
+            cleanup();
+            console.error('❌ Erro ao carregar script JSONP:', error);
+            reject(new Error('Erro ao carregar script: Network error'));
+        };
+
+        console.log('📡 Carregando via JSONP:', script.src);
+        document.head.appendChild(script);
+    });
 }
 
 // ============================================
@@ -238,6 +237,8 @@ function loadFromLocalStorage() {
 // ============================================
 
 function updateUI() {
+    console.log('🎨 Atualizando interface...');
+
     renderCategories();
     renderItemsList();
     renderPreview();
@@ -250,47 +251,7 @@ function updateUI() {
         btn.classList.toggle('active', btn.dataset.color === state.settings.themeColor);
     });
 
-    // Atualizar última visualização
-    updateLastAccess();
-}
-
-// Atualizar timestamp de último acesso
-function updateLastAccess() {
-    try {
-        const saved = localStorage.getItem(CACHE_KEY);
-        if (saved) {
-            const data = JSON.parse(saved);
-            data.lastAccess = Date.now();
-            localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-        }
-    } catch (e) {
-        console.error('Erro ao atualizar último acesso:', e);
-    }
-}
-
-// ============================================
-// MOSTRAR/ESCONDER LOADING
-// ============================================
-
-function showLoading() {
-    const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) {
-        loadingScreen.classList.remove('hidden');
-    }
-}
-
-function hideLoading() {
-    const loadingScreen = document.getElementById('loadingScreen');
-    const mainContainer = document.querySelector('.main-container');
-
-    if (loadingScreen) {
-        loadingScreen.classList.add('hidden');
-    }
-
-    if (mainContainer) {
-        mainContainer.style.opacity = '1';
-        mainContainer.style.transition = 'opacity 0.5s ease';
-    }
+    console.log('✅ Interface atualizada');
 }
 
 // ============================================
@@ -304,6 +265,8 @@ function scheduleAutoSave() {
         clearTimeout(syncStatus.saveTimeout);
     }
 
+    console.log('⏱️ Auto-save agendado para 2 segundos...');
+
     syncStatus.saveTimeout = setTimeout(() => {
         saveToSheets();
     }, 2000);
@@ -314,15 +277,16 @@ function scheduleAutoSave() {
 // ============================================
 
 function startAutoSync() {
-    // Verificar atualizações periodicamente
+    console.log('🔄 Auto-sync iniciado (intervalo:', CONFIG.AUTO_SYNC_INTERVAL / 1000, 'segundos)');
+
     setInterval(async () => {
         // Só sincronizar se não estiver editando
-        if (!syncStatus.hasUnsavedChanges && !syncStatus.isSyncing) {
+        if (!syncStatus.hasUnsavedChanges && !syncStatus.isSyncing && navigator.onLine) {
+            console.log('🔄 Auto-sync: Verificando atualizações...');
             try {
-                await loadFromSheets(false);
-                console.log('🔄 Auto-sync: Dados atualizados');
+                await loadFromSheets();
             } catch (e) {
-                console.log('⚠️ Auto-sync: Falha silenciosa');
+                console.warn('⚠️ Auto-sync falhou (silencioso):', e.message);
             }
         }
     }, CONFIG.AUTO_SYNC_INTERVAL);
@@ -334,90 +298,138 @@ function startAutoSync() {
 
 function setupVisibilitySync() {
     document.addEventListener('visibilitychange', async () => {
-        if (!document.hidden && !syncStatus.hasUnsavedChanges) {
+        if (!document.hidden && !syncStatus.hasUnsavedChanges && navigator.onLine) {
             console.log('👀 Aba focada, verificando atualizações...');
             try {
-                await loadFromSheets(false);
+                await loadFromSheets();
             } catch (e) {
-                console.log('⚠️ Falha ao sincronizar');
+                console.warn('⚠️ Falha ao sincronizar ao focar aba:', e.message);
             }
         }
     });
 }
 
 // ============================================
-// INICIALIZAÇÃO INTELIGENTE V3
+// SYNC AO VOLTAR ONLINE
+// ============================================
+
+function setupOnlineSync() {
+    window.addEventListener('online', async () => {
+        console.log('🌐 Conexão restaurada!');
+
+        // Salvar mudanças pendentes primeiro
+        if (syncStatus.hasUnsavedChanges) {
+            console.log('📤 Salvando mudanças pendentes...');
+            await saveToSheets();
+        }
+
+        // Depois carregar atualizações
+        try {
+            console.log('📥 Carregando atualizações...');
+            await loadFromSheets();
+        } catch (e) {
+            console.warn('⚠️ Falha na sincronização após reconexão:', e.message);
+        }
+    });
+
+    window.addEventListener('offline', () => {
+        console.warn('📴 Conexão perdida - trabalhando offline');
+        console.warn('⚠️ Mudanças não serão salvas no servidor até reconectar');
+    });
+}
+
+// ============================================
+// MOSTRAR/ESCONDER LOADING
+// ============================================
+
+function showLoading() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.classList.remove('hidden');
+        console.log('⏳ Loading screen exibido');
+    }
+}
+
+function hideLoading() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    const mainContainer = document.querySelector('.main-container');
+
+    if (loadingScreen) {
+        loadingScreen.classList.add('hidden');
+        console.log('✅ Loading screen ocultado');
+    }
+
+    if (mainContainer) {
+        mainContainer.style.opacity = '1';
+        mainContainer.style.transition = 'opacity 0.5s ease';
+    }
+}
+
+// ============================================
+// INICIALIZAÇÃO - SEMPRE SHEETS PRIMEIRO
 // ============================================
 
 async function initializeSheetsIntegration() {
-    console.log('🚀 Iniciando Doce Gestão v3...');
+    console.log('═══════════════════════════════════════');
+    console.log('🚀 INICIANDO DOCE GESTÃO V4');
+    console.log('═══════════════════════════════════════');
+    console.log('📅 Data/Hora:', new Date().toLocaleString());
+    console.log('🌐 Online:', navigator.onLine);
+    console.log('📱 User Agent:', navigator.userAgent);
+    console.log('═══════════════════════════════════════');
 
-    // Mostrar loading screen
     showLoading();
 
-    // Limpar caches antigos de outras versões
-    clearOldCaches();
-
-    // ESTRATÉGIA: Sempre tentar Sheets primeiro
-    let loadedFromSheets = false;
-
+    // SEMPRE tentar carregar do Google Sheets primeiro
     try {
-        console.log('☁️ Tentando carregar do Google Sheets...');
+        console.log('☁️ PRIORIDADE: Carregando do Google Sheets...');
 
-        // Timeout mais curto
         await Promise.race([
-            loadFromSheets(false),
+            loadFromSheets(),
             new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Timeout')), CONFIG.LOAD_TIMEOUT)
+                setTimeout(() => reject(new Error('Timeout global')), CONFIG.LOAD_TIMEOUT)
             )
         ]);
 
-        loadedFromSheets = true;
-        console.log('✅ Dados carregados do Sheets com sucesso');
+        console.log('✅ Dados carregados com sucesso do Google Sheets');
 
     } catch (error) {
-        console.warn('⚠️ Falha ao carregar do Sheets:', error.message);
+        console.error('═══════════════════════════════════════');
+        console.error('❌ FALHA CRÍTICA AO CARREGAR DO SHEETS');
+        console.error('═══════════════════════════════════════');
+        console.error('Erro:', error.message);
+        console.error('Stack:', error.stack);
+        console.error('═══════════════════════════════════════');
 
-        // Fallback: tentar cache local
-        const hasCache = loadFromLocalStorage();
+        // Usar dados padrão se falhar completamente
+        console.warn('⚠️ Usando dados padrão do sistema');
+        updateUI();
 
-        if (hasCache) {
-            console.log('💾 Usando cache local como fallback');
-            updateUI();
-        } else {
-            console.log('ℹ️ Nenhum cache disponível, usando dados padrão');
+        // Alertar usuário apenas se online
+        if (navigator.onLine) {
+            setTimeout(() => {
+                alert('⚠️ Não foi possível conectar ao servidor.\n\nVerifique sua conexão e recarregue a página.');
+            }, 500);
         }
     }
 
-    // Configurar auto-save e listeners
+    // Configurar eventos e auto-sync
+    console.log('⚙️ Configurando event listeners...');
     setupEventListeners();
     overrideOriginalFunctions();
-    startAutoSync();
-    setupVisibilitySync();
 
-    // Esconder loading após tudo carregar
-    setTimeout(hideLoading, loadedFromSheets ? 500 : 1000);
-
-    console.log('✨ Sistema inicializado com sucesso');
-}
-
-// Limpar caches de versões antigas
-function clearOldCaches() {
-    try {
-        const keysToRemove = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('doceGestaoData') && key !== CACHE_KEY) {
-                keysToRemove.push(key);
-            }
-        }
-        keysToRemove.forEach(key => {
-            localStorage.removeItem(key);
-            console.log('🧹 Cache antigo removido:', key);
-        });
-    } catch (e) {
-        console.error('Erro ao limpar caches:', e);
+    if (navigator.onLine) {
+        startAutoSync();
     }
+
+    setupVisibilitySync();
+    setupOnlineSync();
+
+    hideLoading();
+
+    console.log('═══════════════════════════════════════');
+    console.log('✨ SISTEMA INICIALIZADO COM SUCESSO');
+    console.log('═══════════════════════════════════════');
 }
 
 // ============================================
@@ -426,11 +438,20 @@ function clearOldCaches() {
 
 function setupEventListeners() {
     ['inputTitle', 'inputSubtitle', 'inputContact'].forEach(id => {
-        document.getElementById(id)?.addEventListener('input', scheduleAutoSave);
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('input', () => {
+                console.log('📝 Campo alterado:', id);
+                scheduleAutoSave();
+            });
+        }
     });
 
     document.querySelectorAll('.color-btn').forEach(btn => {
-        btn.addEventListener('click', scheduleAutoSave);
+        btn.addEventListener('click', () => {
+            console.log('🎨 Cor alterada para:', btn.dataset.color);
+            scheduleAutoSave();
+        });
     });
 }
 
@@ -444,40 +465,40 @@ function overrideOriginalFunctions() {
     };
 
     window.addCategory = function() {
+        console.log('➕ Categoria adicionada');
         original.addCategory();
         scheduleAutoSave();
     };
 
     window.updateCategory = function(id, name) {
+        console.log('✏️ Categoria atualizada:', id, name);
         original.updateCategory(id, name);
         scheduleAutoSave();
     };
 
     window.removeCategory = function(id) {
+        console.log('🗑️ Categoria removida:', id);
         original.removeCategory(id);
         scheduleAutoSave();
     };
 
     window.removeItem = function(id) {
+        console.log('🗑️ Item removido:', id);
         original.removeItem(id);
         scheduleAutoSave();
     };
 
     window.handleSaveItem = function(e) {
+        console.log('💾 Item salvo/editado');
         original.handleSaveItem(e);
         scheduleAutoSave();
     };
-
-    document.getElementById('itemsList')?.addEventListener('drop', () => {
-        setTimeout(scheduleAutoSave, 500);
-    });
 }
 
 // ============================================
-// INICIAR
+// INICIAR QUANDO DOM CARREGAR
 // ============================================
 
-// Aguardar DOM carregar
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         setTimeout(initializeSheetsIntegration, 100);
